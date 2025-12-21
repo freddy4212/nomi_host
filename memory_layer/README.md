@@ -352,7 +352,7 @@ python -m we_mma_2.main
 | 欄位 | 類型 | 說明 |
 |------|------|------|
 | person_id | INTEGER | 主鍵 |
-| current_action | TEXT | 當前動作 |
+| current_action | TEXT | 目前動作 |
 | current_location | TEXT | 當前位置 |
 | last_updated | TIMESTAMPTZ | 更新時間 |
 | is_active | BOOLEAN | 是否活躍 |
