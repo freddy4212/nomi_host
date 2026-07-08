@@ -1,5 +1,8 @@
 # NOMI Host (Home Agent)
 
+> [!IMPORTANT]
+> **[Obtain the Podman container deployment guide (Recommended for Windows)](./_deployment/README.md)**
+
 **NOMI**: Non-verbal Observation & Minimal Interaction Home Agent.
 
 本專案為 NOMI 系統的 **Host 端**（主機端）程式，負責運行於家庭伺服器或電腦上，處理來自 Device 端（WiseEye2）的感知資料，並提供視覺化操作介面。
