@@ -39,7 +39,7 @@ podman build -t nomi-backend:v1 -f ./backend/Dockerfile ../
 5. Build the frontend image.
 
 ```
-podman build -t nomi-frontend:v1 -f .//frontend/Dockerfile ../
+podman build -t nomi-frontend:v1 -f ./frontend/Dockerfile ../
 ```
 
 6. Run the deployment.
