@@ -26,6 +26,17 @@ from .layers import LayerManager
 from .models import DeviceInfo
 from .processor import DataProcessor
 
+class NumpyEncoder(json.JSONEncoder):
+    """專門用來處理 numpy 數值型態無法被 json.dumps 的問題"""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
+
 
 class NOMIOrchestrator:
     def __init__(self):
@@ -183,7 +194,7 @@ class NOMIOrchestrator:
                         "type": "frame_update", "timestamp": time.time(), "image": img_b64,
                         "meta": status, "persons": self._get_persons_list(), "status": "running"
                     }
-                    msg_str = json.dumps(message)
+                    msg_str = json.dumps(message, cls=NumpyEncoder)
                     
                     if self._video_broadcast:
                         if self.loop:
@@ -360,7 +371,7 @@ class NOMIOrchestrator:
         if self._video_broadcast:
             # If broadcast callback is available (Direct mode), send immediately
             if self.loop:
-                self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self._video_broadcast(json.dumps(message))))
+                self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self._video_broadcast(json.dumps(message, cls=NumpyEncoder))))
         else:
             # Fallback to polling buffer
             self._message_buffer = json.dumps(message)

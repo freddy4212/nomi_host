@@ -16,9 +16,9 @@ class DatabaseConfig:
     # PostgreSQL 連線參數
     host: str = "localhost"
     port: int = 5432
-    database: str = "home_agent"
-    user: str = "home_agent"
-    password: str = "home_agent_pwd"
+    database: str = "nomi"
+    user: str = "nomi"
+    password: str = "nomi_pwd"
     
     # 連線池設定
     min_connections: int = 1

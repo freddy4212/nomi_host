@@ -41,7 +41,7 @@ try:
     from .modules.network.receiver import FrameData, NetworkReceiver
     from .modules.skeleton.processor import SkeletonFrame, SkeletonProcessor
 except ImportError:
-    from config import config
+    from .config import config
     from core_models import PersonActionInfo, ReceiverStatus
     from modules.action.recognizer import ActionRecognizerAsync, ActionResult
     from modules.memory import MemoryBridge, create_memory_bridge_if_available

@@ -1,0 +1,81 @@
+
+# Created with podman-5.8.4
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: nomi
+  name: nomi
+spec:
+  containers:
+
+  - name: nomi-database
+    image: docker.io/timescale/timescaledb-ha:pg15
+    args:
+    - postgres
+    env:
+    - name: TS_TUNE_MEMORY
+      value: 128MB
+    - name: TS_TUNE_NUM_CPUS
+      value: "1"
+    - name: POSTGRES_PASSWORD
+      value: nomi_pwd
+    - name: POSTGRES_DB
+      value: nomi
+    - name: POSTGRES_USER
+      value: nomi
+    ports:
+    - containerPort: 5432
+      hostPort: 5432
+    securityContext: {}
+    volumeMounts:
+    - mountPath: /docker-entrypoint-initdb.d/init-db.sql
+      name: init-db-volume
+      readOnly: true
+    - mountPath: /home/postgres/pgdata/data
+      name: nomi-data-pvc
+
+  - name: nomi-backend
+    image: localhost/nomi-backend:v1
+    env:
+    - name: VITE_NOMI_BACKEND_PORT
+      value: "8000"
+    ports:
+    - containerPort: 8000
+      hostPort: 8000
+    - containerPort: 9527
+      hostPort: 9527
+    volumeMounts:
+    - mountPath: /app/config.yaml
+      name: config-volume
+      readOnly: true
+
+  - name: nomi-frontend
+    image: localhost/nomi-frontend:v1
+    args:
+    - npm
+    - run
+    - dev
+    - --
+    - --host
+    - --port
+    - "5173"
+    env:
+    - name: VITE_NOMI_BACKEND_PORT
+      value: "8000"
+    ports:
+    - containerPort: 5173
+      hostPort: 5173
+
+  volumes:
+  - name: init-db-volume
+    hostPath:
+      path: /path/to/nomi_host/_deployment/database/init-db.sql
+      type: File
+  - name: config-volume
+    hostPath:
+      path: /path/to/nomi_host/_deployment/config.yaml
+      type: File
+  - name: nomi-data-pvc
+    persistentVolumeClaim:
+      claimName: nomi-data

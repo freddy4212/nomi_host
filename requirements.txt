@@ -11,7 +11,7 @@ uvicorn>=0.20.0
 websockets>=11.0
 
 # Perception Layer (YOLO-Pose)
-ultralytics>=8.0.0
+# ultralytics>=8.0.0
 
 # Memory Layer (PostgreSQL + TimescaleDB + pgvector)
 psycopg2-binary>=2.9.0
@@ -28,3 +28,5 @@ pyserial>=3.5
 # torch>=1.9.0
 # torchvision>=0.10.0
 # tensorflow>=2.5.0
+
+scipy
