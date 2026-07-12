@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 from typing import Any, Dict, List
@@ -50,7 +51,8 @@ class ActivityAnalyzer:
 
         # 1. Fetch data
         try:
-            events = self.db.get_events_in_range(member_id, actual_start, actual_end)
+            # 同步 DB 查詢丟到執行緒池，避免卡住事件迴圈（此方法在 FastAPI async endpoint 中被 await）
+            events = await asyncio.to_thread(self.db.get_events_in_range, member_id, actual_start, actual_end)
             print(f"[ActivityAnalyzer]{mode_tag} Found {len(events)} events")
         except Exception as e:
              print(f"[ActivityAnalyzer] Query error: {e}")

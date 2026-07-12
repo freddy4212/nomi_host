@@ -58,7 +58,9 @@ class NetworkReceiver:
         self.stop_event = threading.Event()
         
         # 資料隊列（用於解耦讀取和處理）
-        self.data_queue: queue.Queue = queue.Queue()
+        # 設上限避免處理速度跟不上時記憶體無限增長;滿了丟最舊的幀,讓畫面保持即時
+        self.data_queue: queue.Queue = queue.Queue(maxsize=config.network.queue_maxsize if hasattr(config.network, 'queue_maxsize') else 256)
+        self.dropped_lines: int = 0
         
         # 執行緒
         self.read_thread: Optional[threading.Thread] = None
@@ -88,6 +90,9 @@ class NetworkReceiver:
         
         # 連線狀態變更時間（用於即時更新 GUI）
         self._connection_state_changed: bool = False
+
+        # 最近一次致命錯誤（例如埠綁定失敗），供狀態查詢顯示
+        self.last_error: Optional[str] = None
         
     def debug_log(self, msg: str):
         """除錯日誌"""
@@ -103,7 +108,18 @@ class NetworkReceiver:
         """
         if self.is_running:
             return True
-        
+
+        # 等待前一次 stop() 的執行緒完全退出，
+        # 否則 stop_event.clear() 會讓舊執行緒復活，造成雙重 server loop 搶埠、雙重 process loop 搶隊列
+        for old_thread in (self.read_thread, self.process_thread):
+            if old_thread and old_thread.is_alive():
+                old_thread.join(timeout=3.0)
+                if old_thread.is_alive():
+                    self.last_error = "Previous receiver threads did not exit; refusing to restart"
+                    print(f"[NetworkReceiver] ERROR: {self.last_error}")
+                    return False
+
+        self.last_error = None
         self.is_running = True
         self.stop_event.clear()
         
@@ -129,7 +145,7 @@ class NetworkReceiver:
         self.is_running = False
         self.stop_event.set()
         self._disconnect()
-        
+
         # 關閉 Server socket
         if self.server_socket:
             try:
@@ -137,7 +153,15 @@ class NetworkReceiver:
             except:
                 pass
             self.server_socket = None
-        
+
+        # 等待執行緒退出，避免與下一次 start() 競態（accept/recv timeout 最長 1 秒）
+        current = threading.current_thread()
+        for t in (self.read_thread, self.process_thread):
+            if t and t.is_alive() and t is not current:
+                t.join(timeout=3.0)
+                if t.is_alive():
+                    print(f"[NetworkReceiver] WARNING: thread {t.name} did not exit within timeout")
+
         self.debug_log("Network receiver stopped")
     
     def _connect(self) -> bool:
@@ -214,13 +238,15 @@ class NetworkReceiver:
         
         return {
             "connected": self.is_connected,
+            "running": self.is_running,
             "mode": self.mode,
             "host": self.host,
             "port": self.port,
             "client_addr": self.client_addr,
             "reconnect_count": self.reconnect_count,
             "data_age": data_age,  # 距離上次收到資料的秒數
-            "fps": self.current_fps
+            "fps": self.current_fps,
+            "last_error": self.last_error
         }
     
     def _server_loop(self):
@@ -235,7 +261,11 @@ class NetworkReceiver:
             self.server_socket.settimeout(1.0)
             self.debug_log(f"Server listening on {self.host}:{self.port}")
         except Exception as e:
-            self.debug_log(f"Server bind failed: {e}")
+            # bind 失敗必須讓外部看得到，否則狀態會顯示 Running 但永遠收不到資料
+            self.last_error = f"Server bind failed on {self.host}:{self.port}: {e}"
+            print(f"[NetworkReceiver] ERROR: {self.last_error}")
+            self.is_running = False
+            self._connection_state_changed = True
             return
         
         byte_buffer = b""
@@ -284,7 +314,7 @@ class NetworkReceiver:
                 while b'\n' in byte_buffer:
                     line, byte_buffer = byte_buffer.split(b'\n', 1)
                     if line:
-                        self.data_queue.put(line)
+                        self._enqueue_line(line)
                         
             except socket.timeout:
                 continue
@@ -324,7 +354,7 @@ class NetworkReceiver:
                 while b'\n' in byte_buffer:
                     line, byte_buffer = byte_buffer.split(b'\n', 1)
                     if line:
-                        self.data_queue.put(line)
+                        self._enqueue_line(line)
                         
             except socket.timeout:
                 continue
@@ -335,6 +365,22 @@ class NetworkReceiver:
         self._disconnect()
         self.debug_log("Connection loop ended")
     
+    def _enqueue_line(self, line: bytes):
+        """入隊;隊列滿時丟棄最舊的資料以維持即時性"""
+        while True:
+            try:
+                self.data_queue.put_nowait(line)
+                return
+            except queue.Full:
+                try:
+                    self.data_queue.get_nowait()
+                    self.dropped_lines += 1
+                    if self.dropped_lines % 100 == 1:
+                        print(f"[NetworkReceiver] WARNING: processing too slow, "
+                              f"dropped {self.dropped_lines} lines so far")
+                except queue.Empty:
+                    pass
+
     def _process_data_loop(self):
         """資料處理執行緒（負責解析和回調）"""
         self.debug_log("Process thread started")

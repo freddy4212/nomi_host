@@ -22,9 +22,11 @@ class TimeWindowBuffer:
     def __init__(self, window_size_sec: float = 10.0):
         self.window_size_sec = window_size_sec
         self.events: deque[PerceptionEvent] = deque()
+        self.last_add_time: float = time.time()  # 牆鐘時間，供 RuleEngine 清理閒置 buffer 用
 
     def add(self, event: PerceptionEvent):
         self.events.append(event)
+        self.last_add_time = time.time()
         self._cleanup()
 
     def _cleanup(self):
@@ -65,6 +67,8 @@ class RuleEngine:
         self.rules: List[Callable[[TimeWindowBuffer, MemberState, Optional[Any]], Optional[RuleResult]]] = []
         self.db_manager = db_manager
         self.lock = threading.RLock()
+        self._long_rest_last_check: Dict[int, float] = {}  # check_long_rest 的 DB 查詢節流
+        self._last_prune_time: float = time.time()
         
         # 註冊預設規則
         self._register_default_rules()
@@ -94,6 +98,12 @@ class RuleEngine:
             if len(buffer.events) < 30 or avg_motion >= 2.0:
                 return None
             
+            # 節流：每人最多 60 秒查一次 DB，否則有人靜止時會逐事件掃描資料庫，把記憶層壓垮
+            now = time.time()
+            if now - self._long_rest_last_check.get(state.person_id, 0) < 60.0:
+                return None
+            self._long_rest_last_check[state.person_id] = now
+
             # 2. Slow Check: 查詢 DB (如果 DB 有連接)
             # 這裡我們模擬一個假設的 DB 查詢函數，實務上需要在 DatabaseManager 實作
             # 例如: is_inactive = db.check_activity_level(person_id, duration_minutes=60, threshold=2.0)
@@ -127,9 +137,18 @@ class RuleEngine:
             # 1. 更新緩衝區
             if pid not in self.buffers:
                 self.buffers[pid] = TimeWindowBuffer(window_size_sec=10.0) # 預設 10 秒窗口
-            
+
             buffer = self.buffers[pid]
             buffer.add(event)
+
+            # 定期清理離開者的 buffer（person_id 只增不減，不清理會無限累積）
+            now = time.time()
+            if now - self._last_prune_time > 30.0:
+                self._last_prune_time = now
+                stale = [p for p, buf in self.buffers.items() if now - buf.last_add_time > 300.0]
+                for p in stale:
+                    del self.buffers[p]
+                    self._long_rest_last_check.pop(p, None)
             
             if not state:
                 return []

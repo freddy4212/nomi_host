@@ -9,6 +9,7 @@ processor.py - 骨架資料處理與補幀模組
 - 使用專業的骨架濾波器進行平滑和過濾
 """
 
+import threading
 import time
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
@@ -276,7 +277,9 @@ class SkeletonProcessor:
         self._last_frame_no = -1
         
         # 人物追蹤器（簡單的 ID 分配）
+        # 由 TCP 接收執行緒寫入、辨識/GUI 執行緒讀取，必須加鎖保護
         self.person_tracker: Dict[int, PersonSkeleton] = {}
+        self._tracker_lock = threading.RLock()
         
         # ID 映射：將 Sender 的追蹤 ID 映射為從 0 開始的連續本地 ID
         self._sender_to_local_id: Dict[int, int] = {}
@@ -388,68 +391,74 @@ class SkeletonProcessor:
         current_sender_ids = set()
         
         for idx, person_data in enumerate(frame_data.keypoints):
-            if not person_data or len(person_data) < 1:
-                continue
-            
-            # 解析邊界框 [x, y, w, h, score, target]
-            box_data = person_data[0]
-            if len(box_data) < 6:
-                continue
-                
-            x, y, w, h, score, target = box_data[:6]
-            box = (int(x), int(y), int(w), int(h))
-            
-            # Sender 傳來的原始追蹤 ID
-            sender_id = int(target) if target >= 0 else idx
-            current_sender_ids.add(sender_id)
-            
-            # 將 Sender ID 映射為本地 ID（從 0 開始）
-            if sender_id not in self._sender_to_local_id:
-                self._sender_to_local_id[sender_id] = self._next_local_id
-                self._next_local_id += 1
-            person_id = self._sender_to_local_id[sender_id]
-            
-            # 獲取對應的 ReID 向量
-            reid_vector = None
-            if hasattr(frame_data, 'reid_results') and idx < len(frame_data.reid_results):
-                reid_vector = frame_data.reid_results[idx]
-                if reid_vector is not None:
-                    reid_vector = np.array(reid_vector, dtype=np.float32)
-            
-            # 解析關鍵點
-            keypoints = self._parse_keypoints(person_data[1:])
-            
-            if keypoints is not None:
-                # 過濾掉沒有足夠有效關鍵點的檢測
-                valid_count = np.sum(keypoints[:, 2] > config.skeleton.confidence_threshold)
-                if valid_count < 5:
+            # 網路資料可能損毀（截斷、型別錯誤、NaN），單人資料異常時跳過該人而非讓整幀失敗
+            try:
+                if not person_data or len(person_data) < 1:
                     continue
-                
-                # 使用專業的預處理器
-                smoothed_keypoints, interp_frames = self.preprocessor.process_frame(
-                    person_id=person_id,
-                    keypoints=keypoints,
-                    timestamp=timestamp_to_use, # 使用平滑後的時間戳
-                    bbox=box
-                )
-                
-                person = PersonSkeleton(
-                    person_id=person_id,
-                    box=box,
-                    score=float(score),
-                    keypoints=keypoints.copy(),
-                    timestamp=timestamp_to_use, # 使用平滑後的時間戳
-                    smoothed_keypoints=smoothed_keypoints,
-                    reid_vector=reid_vector,
-                    is_visible=True,
-                    last_seen_time=timestamp_to_use # 使用平滑後的時間戳
-                )
-                persons.append(person)
-                detected_person_ids.add(person_id)
-                interpolated_persons_list.append((person_id, box, float(score), interp_frames, reid_vector))
-                
-                # 更新人物追蹤器狀態
-                self.person_tracker[person_id] = person
+
+                # 解析邊界框 [x, y, w, h, score, target]
+                box_data = person_data[0]
+                if len(box_data) < 6:
+                    continue
+
+                x, y, w, h, score, target = box_data[:6]
+                box = (int(x), int(y), int(w), int(h))
+
+                # Sender 傳來的原始追蹤 ID
+                sender_id = int(target) if target >= 0 else idx
+                current_sender_ids.add(sender_id)
+
+                # 將 Sender ID 映射為本地 ID（從 0 開始）
+                if sender_id not in self._sender_to_local_id:
+                    self._sender_to_local_id[sender_id] = self._next_local_id
+                    self._next_local_id += 1
+                person_id = self._sender_to_local_id[sender_id]
+
+                # 獲取對應的 ReID 向量
+                reid_vector = None
+                if hasattr(frame_data, 'reid_results') and idx < len(frame_data.reid_results):
+                    reid_vector = frame_data.reid_results[idx]
+                    if reid_vector is not None:
+                        reid_vector = np.array(reid_vector, dtype=np.float32)
+
+                # 解析關鍵點
+                keypoints = self._parse_keypoints(person_data[1:])
+
+                if keypoints is not None:
+                    # 過濾掉沒有足夠有效關鍵點的檢測
+                    valid_count = np.sum(keypoints[:, 2] > config.skeleton.confidence_threshold)
+                    if valid_count < 5:
+                        continue
+
+                    # 使用專業的預處理器
+                    smoothed_keypoints, interp_frames = self.preprocessor.process_frame(
+                        person_id=person_id,
+                        keypoints=keypoints,
+                        timestamp=timestamp_to_use, # 使用平滑後的時間戳
+                        bbox=box
+                    )
+
+                    person = PersonSkeleton(
+                        person_id=person_id,
+                        box=box,
+                        score=float(score),
+                        keypoints=keypoints.copy(),
+                        timestamp=timestamp_to_use, # 使用平滑後的時間戳
+                        smoothed_keypoints=smoothed_keypoints,
+                        reid_vector=reid_vector,
+                        is_visible=True,
+                        last_seen_time=timestamp_to_use # 使用平滑後的時間戳
+                    )
+                    persons.append(person)
+                    detected_person_ids.add(person_id)
+                    interpolated_persons_list.append((person_id, box, float(score), interp_frames, reid_vector))
+
+                    # 更新人物追蹤器狀態
+                    with self._tracker_lock:
+                        self.person_tracker[person_id] = person
+            except (TypeError, ValueError, IndexError, KeyError) as e:
+                self.debug_log(f"Skipping malformed person data at index {idx}: {e}")
+                continue
         
         # 清理已離開的人的 ID 映射
         stale_sender_ids = [sid for sid in self._sender_to_local_id if sid not in current_sender_ids]
@@ -657,14 +666,19 @@ class SkeletonProcessor:
         """清空所有緩衝區"""
         self.raw_buffer.clear()
         self.interpolated_buffer.clear()
-        self.person_tracker.clear()
+        with self._tracker_lock:
+            self.person_tracker.clear()
         self.preprocessor.reset()
         self.interpolated_frame_count = 0
     
     def _update_invisible_persons(self, current_time: float, detected_ids: set):
         """更新未偵測到的人物狀態"""
+        with self._tracker_lock:
+            self._update_invisible_persons_locked(current_time, detected_ids)
+
+    def _update_invisible_persons_locked(self, current_time: float, detected_ids: set):
         persons_to_remove = []
-        
+
         for person_id, person in self.person_tracker.items():
             if person_id not in detected_ids:
                 time_since_seen = current_time - person.last_seen_time
@@ -697,15 +711,19 @@ class SkeletonProcessor:
         
         for person_id in persons_to_remove:
             del self.person_tracker[person_id]
+            # 一併清理該人的濾波器/前處理狀態,避免 ID 不斷增加導致記憶體無限增長
+            self.preprocessor.reset(person_id)
     
     def get_visible_persons(self) -> List[int]:
         """獲取當前可見的人物 ID 列表"""
-        return [pid for pid, p in self.person_tracker.items() if p.is_visible]
-    
+        with self._tracker_lock:
+            return [pid for pid, p in self.person_tracker.items() if p.is_visible]
+
     def get_invisible_persons(self) -> List[Tuple[int, str, Tuple[int, int, int, int]]]:
         """獲取當前不可見但仍在追蹤中的人物資訊"""
-        return [
-            (pid, p.disappear_direction, p.box) 
-            for pid, p in self.person_tracker.items() 
-            if not p.is_visible
-        ]
+        with self._tracker_lock:
+            return [
+                (pid, p.disappear_direction, p.box)
+                for pid, p in self.person_tracker.items()
+                if not p.is_visible
+            ]

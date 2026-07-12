@@ -55,22 +55,33 @@ ws_router = setup_websocket_routes(app, orchestrator)
 
 
 # --- 背景任務 ---
+# 保存 task 參照：event loop 對 task 只持弱參照，不保存可能被 GC 中途回收；
+# 每個 worker 的迴圈內都要有例外防護，否則一個例外就讓該通道永久停擺
+_background_tasks = []
+
+
 async def buffer_polling_worker():
     """輪詢訊息緩衝並廣播到 Video Channel"""
     last_sent = None
     while True:
-        buffer = orchestrator.get_message_buffer()
-        if buffer and buffer != last_sent:
-            await ws_router.video_manager.broadcast(buffer)
-            last_sent = buffer
+        try:
+            buffer = orchestrator.get_message_buffer()
+            if buffer and buffer != last_sent:
+                await ws_router.video_manager.broadcast(buffer)
+                last_sent = buffer
+        except Exception as e:
+            print(f"[Backend] Buffer polling error: {e}")
         await asyncio.sleep(0.03)  # ~30 FPS
 
 
 async def data_broadcast_worker():
     """從 Queue 取出資料並廣播到 Data Channel"""
     while True:
-        message = await data_queue.get()
-        await ws_router.data_manager.broadcast(message)
+        try:
+            message = await data_queue.get()
+            await ws_router.data_manager.broadcast(message)
+        except Exception as e:
+            print(f"[Backend] Data broadcast error: {e}")
 
 
 async def status_broadcast_worker():
@@ -103,21 +114,23 @@ async def startup_event():
         on_video_broadcast=ws_router.video_manager.broadcast
     )
     
-    # 啟動背景任務
-    asyncio.create_task(buffer_polling_worker())
-    asyncio.create_task(data_broadcast_worker())
-    asyncio.create_task(status_broadcast_worker())
-    
-    # 啟動系統
-    orchestrator.start_system()
-    
+    # 啟動背景任務（保存參照，避免被 GC 回收）
+    _background_tasks.append(asyncio.create_task(buffer_polling_worker()))
+    _background_tasks.append(asyncio.create_task(data_broadcast_worker()))
+    _background_tasks.append(asyncio.create_task(status_broadcast_worker()))
+
+    # 啟動系統（模型載入等重活丟到執行緒池，不佔用事件迴圈）
+    await asyncio.to_thread(orchestrator.start_system)
+
     print("[Backend] System started")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """應用關閉時執行"""
-    orchestrator.stop_system()
+    for task in _background_tasks:
+        task.cancel()
+    await asyncio.to_thread(orchestrator.stop_system)
     print("[Backend] System stopped")
 
 

@@ -267,19 +267,20 @@ class MemoryLayer(threading.Thread):
         Args:
             event: 感知事件
         """
+        state_to_sync = None
         with self._state_lock:
             person_id = event.person_id
-            
+
             # 取得或建立狀態
             if person_id not in self.active_states:
                 self.active_states[person_id] = MemberState(
                     person_id=person_id,
                     member_id=event.matched_member_id,
                 )
-            
+
             state = self.active_states[person_id]
             old_action = state.last_action
-            
+
             # 更新狀態
             state.last_seen_time = event.timestamp
             state.last_bbox = event.bbox
@@ -287,28 +288,33 @@ class MemoryLayer(threading.Thread):
             state.last_action_duration = event.action_duration
             if event.environment and event.environment.room:
                 state.last_location = event.environment.room
-            
+
             # 如果動作改變，重設開始時間
             if event.action_label != old_action:
                 state.last_action = event.action_label
                 state.last_action_start = event.timestamp
-                
+
                 # 觸發狀態變化回調
                 if self.on_state_change:
                     try:
                         self.on_state_change(state)
                     except Exception as e:
                         self.debug_log(f"State change callback error: {e}")
-            
-            # 同步更新到資料庫快照表 (節流：每 1.0 秒最多一次)
+
+            # 判斷是否需要同步到資料庫快照表 (節流：每 1.0 秒最多一次)
             now = time.time()
             last_sync = self._last_state_sync.get(person_id, 0)
             if now - last_sync >= 1.0:
-                try:
-                    self.db.update_member_state(state)
-                    self._last_state_sync[person_id] = now
-                except Exception as e:
-                    self.debug_log(f"Failed to update member state in DB: {e}")
+                self._last_state_sync[person_id] = now
+                state_to_sync = state
+
+        # DB 同步必須在鎖外進行：資料庫變慢時不能拖住持有 _state_lock 的執行緒，
+        # 否則所有查詢狀態的 GUI/API 執行緒會一起卡死
+        if state_to_sync is not None:
+            try:
+                self.db.update_member_state(state_to_sync)
+            except Exception as e:
+                self.debug_log(f"Failed to update member state in DB: {e}")
     
     def _check_batch_timeout(self):
         """檢查批次超時並強制刷新"""
@@ -338,8 +344,15 @@ class MemoryLayer(threading.Thread):
             self.debug_log(f"Successfully flushed {count} events to database (total: {self._events_written})")
         except Exception as e:
             self.debug_log(f"Batch write failed: {e}")
-            import traceback
-            traceback.print_exc()
+            # 寫入失敗時把事件放回緩衝等待重試，不能直接丟掉；
+            # 設上限避免資料庫長時間離線時緩衝無限增長（超過時丟最舊的）
+            with self._batch_lock:
+                self._batch_buffer = events_to_write + self._batch_buffer
+                max_pending = max(memory_config.queue.batch_size * 50, 1000)
+                if len(self._batch_buffer) > max_pending:
+                    dropped = len(self._batch_buffer) - max_pending
+                    self._batch_buffer = self._batch_buffer[-max_pending:]
+                    print(f"[MemoryLayer] WARNING: batch buffer overflow, dropped {dropped} oldest events")
     
     def _cleanup_inactive_members(self, timeout_sec: float = 30.0):
         """
@@ -349,18 +362,28 @@ class MemoryLayer(threading.Thread):
             timeout_sec: 超時秒數
         """
         now = time.time()
+        remove_after_sec = max(timeout_sec * 20, 600.0)
+        states_to_sync = []
         with self._state_lock:
-            inactive = [
-                pid for pid, state in self.active_states.items()
-                if now - state.last_seen_time > timeout_sec
-            ]
-            for pid in inactive:
-                # 標記為不可見，但保留在追蹤中 (可能只是暫時離開鏡頭)
-                state = self.active_states[pid]
-                if state.is_visible: # 只在狀態改變時更新
+            for pid, state in list(self.active_states.items()):
+                idle = now - state.last_seen_time
+                if idle > remove_after_sec:
+                    # 離開太久的直接移除（快照已在 DB），避免 person_id 不斷增加導致記憶體無限增長
+                    del self.active_states[pid]
+                    self._last_state_sync.pop(pid, None)
+                    self.debug_log(f"Person {pid} state removed after {idle:.0f}s inactivity")
+                elif idle > timeout_sec and state.is_visible:
+                    # 標記為不可見，但保留在追蹤中 (可能只是暫時離開鏡頭)
                     state.is_visible = False
-                    self.db.update_member_state(state)
+                    states_to_sync.append(state)
                     self.debug_log(f"Person {pid} marked as invisible")
+
+        # DB 同步在鎖外進行，避免資料庫變慢時卡住所有讀取狀態的執行緒
+        for state in states_to_sync:
+            try:
+                self.db.update_member_state(state)
+            except Exception as e:
+                self.debug_log(f"Failed to sync invisible state for person {state.person_id}: {e}")
 
 
 class MemoryLayerClient:

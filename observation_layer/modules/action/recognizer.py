@@ -575,8 +575,13 @@ class ActionRecognizerAsync:
             if sequences_info is not None:
                 if config.debug:
                     print(f"[ActionRecognizerAsync] Processing {len(sequences_info)} person(s)")
-                results = self.recognizer.recognize_all(sequences_info)
-                
+                # 單筆異常序列（NaN、形狀錯誤、推論失敗）不可殺死整條識別執行緒
+                try:
+                    results = self.recognizer.recognize_all(sequences_info)
+                except Exception as e:
+                    print(f"[ActionRecognizerAsync] recognize_all failed, skipping this batch: {e}")
+                    continue
+
                 self.latest_results = results
                 
                 # 觸發回調

@@ -9,6 +9,7 @@ core.py - NOMI 系統編排器 (Slim Hub)
 import asyncio
 import base64
 import json
+import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -57,6 +58,13 @@ class NOMIOrchestrator:
         self._last_db_events_written = 0
         self._last_frame_data = None
         self._interpolation_task = None
+
+        # 影像廣播（coalescing）：只保留最新一幀的 payload，由單一發送任務送出。
+        # 避免舊寫法每幀 create_task 造成任務無限堆積、幀亂序、慢客戶端拖垮記憶體
+        self._video_payload: Optional[str] = None
+        self._video_payload_lock = threading.Lock()
+        self._video_send_event: Optional[asyncio.Event] = None
+        self._video_sender_task = None
         
         # 錄製狀態
         self.is_recording = False
@@ -71,7 +79,34 @@ class NOMIOrchestrator:
         print("[Orchestrator] Slim Hub Initialized")
 
     # ==================== 生命週期 ====================
-    def set_event_loop(self, loop: asyncio.AbstractEventLoop): self.loop = loop
+    def set_event_loop(self, loop: asyncio.AbstractEventLoop):
+        self.loop = loop
+        if self._video_sender_task is None or self._video_sender_task.done():
+            self._video_send_event = asyncio.Event()
+            self._video_sender_task = loop.create_task(self._video_sender_loop())
+
+    def _publish_video(self, payload: str):
+        """從任意執行緒發布最新影像 payload（覆蓋未送出的舊幀）"""
+        with self._video_payload_lock:
+            self._video_payload = payload
+        if self.loop and self._video_send_event is not None:
+            self.loop.call_soon_threadsafe(self._video_send_event.set)
+
+    async def _video_sender_loop(self):
+        """單一發送任務：一次只有一個 in-flight 廣播，天然限流且不會亂序"""
+        while True:
+            try:
+                await self._video_send_event.wait()
+                self._video_send_event.clear()
+                with self._video_payload_lock:
+                    payload = self._video_payload
+                    self._video_payload = None
+                if payload and self._video_broadcast:
+                    await self._video_broadcast(payload)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"[Orchestrator] Video broadcast error: {e}")
     def set_callbacks(self, on_event_update: Optional[Callable[[str], None]] = None, on_video_broadcast: Optional[Callable[[str], None]] = None, **kwargs):
         self._on_event_update = on_event_update
         self._video_broadcast = on_video_broadcast
@@ -95,14 +130,27 @@ class NOMIOrchestrator:
         return False
 
     def _start_interpolation_loop(self):
-        if self._interpolation_task is None or self._interpolation_task.done():
-            if self.loop:
+        # 可能從感知層執行緒被呼叫；loop.create_task 不是 thread-safe，
+        # 必須用 call_soon_threadsafe 把任務建立排程到事件迴圈執行緒上
+        if not self.loop:
+            return
+
+        def _ensure_task():
+            if self._interpolation_task is None or self._interpolation_task.done():
                 self._interpolation_task = self.loop.create_task(self._run_interpolation_loop())
 
+        self.loop.call_soon_threadsafe(_ensure_task)
+
     def _stop_interpolation_loop(self):
-        if self._interpolation_task and not self._interpolation_task.done():
-            self._interpolation_task.cancel()
+        if not self.loop:
+            return
+
+        def _cancel_task():
+            if self._interpolation_task and not self._interpolation_task.done():
+                self._interpolation_task.cancel()
             self._interpolation_task = None
+
+        self.loop.call_soon_threadsafe(_cancel_task)
 
     async def _run_interpolation_loop(self):
         """
@@ -164,24 +212,19 @@ class NOMIOrchestrator:
                 # 重要: 如果 interp_frame 是 None，我們傳入 "overlay" 作為 view_mode
                 # DataProcessor.render_frame 必須能從 current_frame_data 中萃取 keypoints 來繪製
                 mode = "interpolated" if interp_frame else "overlay"
-                
-                rendered = DataProcessor.render_frame(
-                    current_frame_data, 
-                    interp_frame, 
-                    self.layers.observation_core, 
-                    mode, 
+
+                # 渲染/JPEG 編碼是 CPU 密集操作，移到執行緒池執行，
+                # 避免把整個事件迴圈（所有 WebSocket 流量）卡住
+                rendered = await asyncio.to_thread(
+                    DataProcessor.render_frame,
+                    current_frame_data,
+                    interp_frame,
+                    self.layers.observation_core,
+                    mode,
                     None
                 )
-                    
+
                 if rendered is not None:
-                    # 這裡我們手動呼叫 encode_image 並指定較低的品質
-                    try:
-                        _, buf = cv2.imencode('.jpg', rendered, [cv2.IMWRITE_JPEG_QUALITY, 50])
-                        img_b64 = base64.b64encode(buf).decode('utf-8')
-                    except Exception as e:
-                        print(f"[Interpolation] Image encode error: {e}")
-                        img_b64 = ""
-                    
                     # 收集狀態
                     status, events_written = DataProcessor.collect_status(
                         current_frame_data, self.layers.observation_core, self.layers.memory_core,
@@ -189,16 +232,13 @@ class NOMIOrchestrator:
                         memory_config
                     )
                     self._last_db_events_written = events_written
-                    
-                    message = {
-                        "type": "frame_update", "timestamp": time.time(), "image": img_b64,
-                        "meta": status, "persons": self._get_persons_list(), "status": "running"
-                    }
-                    msg_str = json.dumps(message, cls=NumpyEncoder)
-                    
+
+                    msg_str = await asyncio.to_thread(
+                        self._encode_frame_message, rendered, status, self._get_persons_list()
+                    )
+
                     if self._video_broadcast:
-                        if self.loop:
-                            self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self._video_broadcast(msg_str)))
+                        self._publish_video(msg_str)
                     else:
                         self._message_buffer = msg_str
             
@@ -228,6 +268,21 @@ class NOMIOrchestrator:
             print(f"[Orchestrator] Interpolation loop error: {e}")
             import traceback
             traceback.print_exc()
+
+    def _encode_frame_message(self, rendered, status, persons) -> str:
+        """JPEG 編碼 + JSON 序列化（CPU 密集，設計在執行緒池中執行）"""
+        try:
+            _, buf = cv2.imencode('.jpg', rendered, [cv2.IMWRITE_JPEG_QUALITY, 50])
+            img_b64 = base64.b64encode(buf).decode('utf-8')
+        except Exception as e:
+            print(f"[Interpolation] Image encode error: {e}")
+            img_b64 = ""
+
+        message = {
+            "type": "frame_update", "timestamp": time.time(), "image": img_b64,
+            "meta": status, "persons": persons, "status": "running"
+        }
+        return json.dumps(message, cls=NumpyEncoder)
 
     def start_recording(self, name: str):
         if not self.layers.observation_core: return False, "感知層未啟動"
@@ -368,13 +423,13 @@ class NOMIOrchestrator:
             "type": "frame_update", "timestamp": time.time(), "image": img_b64,
             "meta": status, "persons": self._get_persons_list(), "status": "running"
         }
+        # JSON 序列化（含整張 base64 圖）在本執行緒（感知層執行緒）完成，不佔用事件迴圈
+        payload = json.dumps(message, cls=NumpyEncoder)
         if self._video_broadcast:
-            # If broadcast callback is available (Direct mode), send immediately
-            if self.loop:
-                self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self._video_broadcast(json.dumps(message, cls=NumpyEncoder))))
+            self._publish_video(payload)
         else:
             # Fallback to polling buffer
-            self._message_buffer = json.dumps(message)
+            self._message_buffer = payload
 
     def _on_action_recognized(self, actions): self._latest_actions = actions
 

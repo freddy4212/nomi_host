@@ -65,13 +65,19 @@ class ConnectionManager:
         # 複製列表避免在迭代時修改
         async with self._lock:
             connections = self.active_connections.copy()
-        
-        disconnected = []
-        for connection in connections:
-            try:
-                await connection.send_text(message)
-            except Exception:
-                disconnected.append(connection)
+
+        if not connections:
+            return
+
+        # 並行發送：一個慢客戶端不會拖延其他客戶端收到訊息
+        results = await asyncio.gather(
+            *(conn.send_text(message) for conn in connections),
+            return_exceptions=True
+        )
+        disconnected = [
+            conn for conn, result in zip(connections, results)
+            if isinstance(result, Exception)
+        ]
         
         # 清理斷開的連線
         if disconnected:

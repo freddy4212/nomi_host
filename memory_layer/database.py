@@ -81,7 +81,15 @@ class DatabaseManager:
         self._local = threading.local()
         self._connected = False
         self._connection_error: Optional[str] = None
-        
+
+        # 追蹤所有執行緒建立的連線，讓 close() 能全部收斂（threading.local 只看得到自己執行緒的）
+        self._all_connections: set = set()
+        self._conn_track_lock = threading.Lock()
+
+        # 重連退避：資料庫掛掉時避免每次呼叫都重試 TCP 連線（connect_timeout 可達 10 秒）
+        self._last_connect_attempt: float = 0.0
+        self._reconnect_min_interval: float = 5.0
+
         # 嘗試連線
         self._try_connect()
     
@@ -125,32 +133,75 @@ class DatabaseManager:
         """取得執行緒安全的資料庫連線"""
         if not PSYCOPG2_AVAILABLE:
             raise DatabaseError("psycopg2 未安裝")
-        
-        if not hasattr(self._local, 'connection') or self._local.connection is None or self._local.connection.closed:
+
+        conn = getattr(self._local, 'connection', None)
+        if conn is not None and not conn.closed:
+            return conn
+
+        now = time.time()
+        if not self._connected and (now - self._last_connect_attempt) < self._reconnect_min_interval:
+            # 已知斷線且在退避間隔內：快速失敗，不做 TCP 連線嘗試
+            raise DatabaseNotConnectedError(self._connection_error or "資料庫未連線（重連退避中）")
+
+        try:
+            self._last_connect_attempt = now
+            new_conn = psycopg2.connect(**self.config.get_dsn())
+            new_conn.autocommit = False
+        except psycopg2.OperationalError as e:
+            self._connected = False
+            self._connection_error = str(e)
+            raise DatabaseNotConnectedError(f"無法連線到 PostgreSQL: {e}")
+
+        self._local.connection = new_conn
+        with self._conn_track_lock:
+            self._all_connections.add(new_conn)
+        # 任一路徑成功建立連線都恢復連線旗標，讓熱路徑（find_nearest_member）恢復運作
+        self._connected = True
+        self._connection_error = None
+        return new_conn
+
+    def _discard_thread_connection(self):
+        """丟棄本執行緒的（可能已損壞的）連線"""
+        conn = getattr(self._local, 'connection', None)
+        if conn is not None:
+            with self._conn_track_lock:
+                self._all_connections.discard(conn)
             try:
-                self._local.connection = psycopg2.connect(**self.config.get_dsn())
-                self._local.connection.autocommit = False
-            except psycopg2.OperationalError as e:
-                raise DatabaseNotConnectedError(f"無法連線到 PostgreSQL: {e}")
-        return self._local.connection
-    
+                conn.close()
+            except Exception:
+                pass
+            self._local.connection = None
+
     @contextmanager
     def get_cursor(self) -> Generator:
-        """取得資料庫游標的 Context Manager"""
+        """取得資料庫游標的 Context Manager（斷線後會自動嘗試重連，受退避間隔保護）"""
         if not self._connected:
-            raise DatabaseNotConnectedError("資料庫未連線")
-        
+            if not self._try_connect():
+                raise DatabaseNotConnectedError(self._connection_error or "資料庫未連線")
+
         conn = self._get_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             yield cursor
             conn.commit()
         except Exception as e:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                # 連線已死時 rollback 本身會拋錯，不能蓋掉原始錯誤
+                pass
+            if isinstance(e, (psycopg2.OperationalError, psycopg2.InterfaceError)) or conn.closed:
+                # 連線層級錯誤：標記斷線並丟棄連線，之後的呼叫走重連路徑
+                self._connected = False
+                self._connection_error = str(e)
+                self._discard_thread_connection()
             self.debug_log(f"Database error: {e}")
             raise
         finally:
-            cursor.close()
+            try:
+                cursor.close()
+            except Exception:
+                pass
 
     def get_iot_devices(self) -> List[Dict[str, Any]]:
         """取得所有 IoT 裝置"""
@@ -414,9 +465,10 @@ class DatabaseManager:
         Returns:
             成功插入的記錄數
         """
-        if not events or not self._connected:
+        if not events:
             return 0
-        
+
+        # 不在此檢查 _connected：get_cursor 會嘗試自動重連，失敗時拋出例外讓呼叫端保留事件重試
         with self.get_cursor() as cursor:
             data = []
             for event in events:
@@ -821,12 +873,7 @@ class DatabaseManager:
         except Exception as e:
             self.debug_log(f"get_all_members error: {e}")
             # 清除可能損壞的連線
-            if hasattr(self._local, 'connection'):
-                try:
-                    self._local.connection.close()
-                except:
-                    pass
-                self._local.connection = None
+            self._discard_thread_connection()
             return []
 
     def find_nearest_member(self, vector: List[float], threshold: float = 0.5) -> Optional[Dict[str, Any]]:
@@ -846,7 +893,12 @@ class DatabaseManager:
         # 驗證向量
         if vector is None or len(vector) == 0:
             return None
-            
+
+        # 此方法在影像處理熱路徑上被逐幀呼叫：
+        # 資料庫斷線時直接快速失敗，重連交給記憶層執行緒（get_cursor 路徑），避免每幀卡住等待 TCP 連線
+        if not self._connected:
+            return None
+
         try:
             # 確保連線可用（多線程環境下可能需要重新連線）
             conn = self._get_connection()
@@ -874,19 +926,24 @@ class DatabaseManager:
                 
         except Exception as e:
             self.debug_log(f"find_nearest_member error: {e}")
-            # 清除可能損壞的連線
-            if hasattr(self._local, 'connection'):
-                try:
-                    self._local.connection.close()
-                except:
-                    pass
-                self._local.connection = None
+            # 清除可能損壞的連線；連線層級錯誤時標記斷線讓熱路徑快速失敗
+            if isinstance(e, (psycopg2.OperationalError, psycopg2.InterfaceError)):
+                self._connected = False
+                self._connection_error = str(e)
+            self._discard_thread_connection()
             return None
 
     def close(self):
-        """關閉資料庫連線"""
-        if hasattr(self._local, 'connection') and self._local.connection:
-            self._local.connection.close()
+        """關閉所有執行緒建立的資料庫連線"""
+        with self._conn_track_lock:
+            conns = list(self._all_connections)
+            self._all_connections.clear()
+        for conn in conns:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        if hasattr(self._local, 'connection'):
             self._local.connection = None
-            self._connected = False
-            self.debug_log("Database connection closed")
+        self._connected = False
+        self.debug_log(f"Database connections closed ({len(conns)})")

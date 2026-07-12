@@ -119,6 +119,7 @@ class MemoryBridge:
         # 過濾短暫出現的異常人物 (Debouncing)
         self.pending_persons: Dict[int, Dict[str, Any]] = {}
         self.verified_persons: set[int] = set()
+        self._verified_last_seen: Dict[int, float] = {}  # 用於清理離開的已驗證人物
         self.min_duration_threshold = 0.1  # 降低到 0.1 秒，讓新人物幾乎立即出現
         self.last_cleanup_time = time.time()
         
@@ -172,6 +173,10 @@ class MemoryBridge:
                 inference_queue=self._inference_queue
             )
             self._memory_layer = new_layer
+            # client 原本共用舊 layer 的 db（可能已被 close），改指向新 db，
+            # 否則 stop/start 後成員註冊、ReID 查詢會永久失效
+            if getattr(self, '_client', None) is not None:
+                self._client.db = new_layer.db
             self.debug_log("Memory Layer thread object recreated")
         except Exception as e:
             self.debug_log(f"Failed to recreate memory layer: {e}")
@@ -265,6 +270,7 @@ class MemoryBridge:
             # === 過濾邏輯 (Debouncing) ===
             
             if person_id in self.verified_persons:
+                self._verified_last_seen[person_id] = time.time()
                 self._process_action_stability(person_id, event)
                 return True
             
@@ -285,7 +291,8 @@ class MemoryBridge:
                 self.debug_log(f"Person {person_id} verified (duration: {duration:.2f}s), flushing {len(person_data['events'])} events")
                 
                 self.verified_persons.add(person_id)
-                
+                self._verified_last_seen[person_id] = current_time
+
                 for buffered_event in person_data['events']:
                     self._process_action_stability(person_id, buffered_event)
                 
@@ -342,23 +349,30 @@ class MemoryBridge:
         return max(counts, key=counts.get)
 
     def _cleanup_pending_persons(self, current_time: float):
-        """清理長時間未更新的待驗證人物"""
+        """清理長時間未更新的待驗證與已驗證人物（person_id 只增不減，不清理會造成記憶體洩漏）"""
         timeout = 2.0
-        to_remove = []
-        
-        for pid, data in self.pending_persons.items():
-            if current_time - data['last_seen'] > timeout:
-                to_remove.append(pid)
-        
+        to_remove = [
+            pid for pid, data in self.pending_persons.items()
+            if current_time - data['last_seen'] > timeout
+        ]
         for pid in to_remove:
             del self.pending_persons[pid]
-            if pid in self.verified_persons:
-                self.verified_persons.remove(pid)
-                if pid in self.action_buffer:
-                    for event in self.action_buffer[pid]:
-                        self._send_to_queue(event)
-                    del self.action_buffer[pid]
-            self.debug_log(f"Cleaned up stale person {pid}")
+            self.debug_log(f"Cleaned up stale pending person {pid}")
+
+        # 已驗證人物離開後也要清理（驗證時已從 pending_persons 移除，上面的迴圈碰不到它們）
+        verified_timeout = 60.0
+        stale_verified = [
+            pid for pid, last_seen in self._verified_last_seen.items()
+            if current_time - last_seen > verified_timeout
+        ]
+        for pid in stale_verified:
+            self.verified_persons.discard(pid)
+            self._verified_last_seen.pop(pid, None)
+            remaining = self.action_buffer.pop(pid, None)
+            if remaining:
+                for event in remaining:
+                    self._send_to_queue(event)
+            self.debug_log(f"Cleaned up stale verified person {pid}")
     
     def send_visibility_change(
         self,
@@ -373,7 +387,7 @@ class MemoryBridge:
             return False
         
         try:
-            event = PerceptionEvent(
+            event = _PerceptionEvent(
                 timestamp=time.time(),
                 frame_no=frame_no,
                 person_id=person_id,

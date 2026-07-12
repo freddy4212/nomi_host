@@ -88,11 +88,14 @@ EOF
 mkdir -p "$(dirname "$BACKEND_LOG_FILE")"
 
 echo "[3/3] Starting backend and frontend..."
+# 注意：子 shell 內用 exec 讓 python 直接取代子 shell（PID 不變），
+# 否則 $! 抓到的是包裝用 bash 的 PID，cleanup 的 kill 殺不到真正的後端，
+# 造成殭屍後端佔住埠、下次啟動連不上的問題
 if [[ "$FOREGROUND_LOGS" == true ]]; then
   echo "Backend log mode: foreground (also saved to $BACKEND_LOG_FILE)"
   (
     cd "$ROOT_DIR"
-    NOMI_BACKEND_PORT="$BACKEND_PORT" python -u -m control_panel.backend.main \
+    exec env NOMI_BACKEND_PORT="$BACKEND_PORT" python -u -m control_panel.backend.main \
       > >(tee -a "$BACKEND_LOG_FILE") \
       2> >(tee -a "$BACKEND_LOG_FILE" >&2)
   ) &
@@ -100,7 +103,7 @@ else
   echo "Backend log mode: background file only"
   (
     cd "$ROOT_DIR"
-    NOMI_BACKEND_PORT="$BACKEND_PORT" python -u -m control_panel.backend.main
+    exec env NOMI_BACKEND_PORT="$BACKEND_PORT" python -u -m control_panel.backend.main
   ) > "$BACKEND_LOG_FILE" 2>&1 &
 fi
 BACKEND_PID=$!
@@ -113,6 +116,15 @@ cleanup() {
   echo "Stopping NOMI services..."
   if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
     kill "$BACKEND_PID" >/dev/null 2>&1 || true
+    # 給後端最多 10 秒優雅退出，逾時強制終止，避免殘留程序佔住埠
+    for _ in {1..10}; do
+      kill -0 "$BACKEND_PID" >/dev/null 2>&1 || break
+      sleep 1
+    done
+    if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+      echo "Backend did not exit gracefully, sending SIGKILL"
+      kill -9 "$BACKEND_PID" >/dev/null 2>&1 || true
+    fi
     wait "$BACKEND_PID" 2>/dev/null || true
   fi
   echo "Done."

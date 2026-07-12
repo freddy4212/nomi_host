@@ -64,6 +64,9 @@ class WebSocketRouter:
                     # Video socket is mostly output, but we keep it alive
                     await websocket.receive_text()
             except WebSocketDisconnect:
+                pass
+            finally:
+                # 用 finally 保證任何例外（不只 WebSocketDisconnect）都會清理連線
                 await self.video_manager.disconnect(websocket)
 
         @app.websocket("/ws/data")
@@ -74,6 +77,8 @@ class WebSocketRouter:
                     data = await websocket.receive_text()
                     await self._handle_data_message(websocket, data)
             except WebSocketDisconnect:
+                pass
+            finally:
                 await self.data_manager.disconnect(websocket)
 
         # Legacy support: /ws redirects to video logic
@@ -84,6 +89,8 @@ class WebSocketRouter:
                 while True:
                     await websocket.receive_text()
             except WebSocketDisconnect:
+                pass
+            finally:
                 await self.video_manager.disconnect(websocket)
     
     async def _handle_data_message(self, websocket: WebSocket, data: str):
@@ -110,17 +117,19 @@ class WebSocketRouter:
         """處理系統命令"""
         cmd = data.get("command")
         
+        # 注意：以下 orchestrator 呼叫（啟停系統、資料庫操作）都是同步阻塞的，
+        # 必須丟到執行緒池執行，否則會凍結整個事件迴圈（所有 WebSocket 一起停擺）
         if cmd == "start_system":
             print("[WebSocket] Received start_system command")
-            self.orchestrator.start_system()
-            
+            await asyncio.to_thread(self.orchestrator.start_system)
+
         elif cmd == "stop_system":
             print("[WebSocket] Received stop_system command")
-            self.orchestrator.stop_system()
-            
+            await asyncio.to_thread(self.orchestrator.stop_system)
+
         elif cmd == "clear_memory":
             print(f"[WebSocket] Received clear_memory command")
-            success = self.orchestrator.clear_all_events()
+            success = await asyncio.to_thread(self.orchestrator.clear_all_events)
             print(f"[WebSocket] Clear memory success: {success}")
             
             # 通知所有客戶端資料已更新
@@ -140,11 +149,11 @@ class WebSocketRouter:
         elif cmd == "delete_member":
             member_id = data.get("member_id")
             print(f"[WebSocket] Received delete_member command for ID: {member_id}")
-            success = self.orchestrator.delete_member(member_id)
-            
+            success = await asyncio.to_thread(self.orchestrator.delete_member, member_id)
+
             if success:
                 # 廣播更新後的成員列表
-                members = self.orchestrator.get_all_members()
+                members = await asyncio.to_thread(self.orchestrator.get_all_members)
                 await self.data_manager.broadcast(json.dumps({
                     "type": "db_data",
                     "query": "all_members",
@@ -162,11 +171,11 @@ class WebSocketRouter:
             member_id = data.get("member_id")
             new_name = data.get("name")
             print(f"[WebSocket] Received update_member command for ID: {member_id}, Name: {new_name}")
-            success = self.orchestrator.update_member_name(member_id, new_name)
-            
+            success = await asyncio.to_thread(self.orchestrator.update_member_name, member_id, new_name)
+
             if success:
                 # 廣播更新後的成員列表
-                members = self.orchestrator.get_all_members()
+                members = await asyncio.to_thread(self.orchestrator.get_all_members)
                 await self.data_manager.broadcast(json.dumps({
                     "type": "db_data",
                     "query": "all_members",
@@ -221,7 +230,9 @@ class WebSocketRouter:
         if query_type == "recent_events":
             limit = data.get("limit", 50)
             duration_sec = data.get("duration_sec", 86400)
-            events = self.orchestrator.get_recent_events(limit=limit, duration_sec=duration_sec)
+            events = await asyncio.to_thread(
+                self.orchestrator.get_recent_events, limit=limit, duration_sec=duration_sec
+            )
             await websocket.send_text(json.dumps({
                 "type": "db_data",
                 "query": "recent_events",
@@ -229,7 +240,7 @@ class WebSocketRouter:
             }, default=json_serializable))
             
         elif query_type == "member_states":
-            states = self.orchestrator.get_member_states()
+            states = await asyncio.to_thread(self.orchestrator.get_member_states)
             await websocket.send_text(json.dumps({
                 "type": "db_data",
                 "query": "member_states",
@@ -237,7 +248,7 @@ class WebSocketRouter:
             }, default=json_serializable))
             
         elif query_type == "all_members":
-            members = self.orchestrator.get_all_members()
+            members = await asyncio.to_thread(self.orchestrator.get_all_members)
             await websocket.send_text(json.dumps({
                 "type": "db_data",
                 "query": "all_members",

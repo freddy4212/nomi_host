@@ -149,7 +149,7 @@ class MemoryCore:
     
     def get_registered_members(self) -> List[Dict]:
         """取得所有已註冊成員"""
-        return self._db.get_registered_members()
+        return self._db.get_all_members()
     
     def clear_all_events(self) -> bool:
         """清除所有事件記憶"""

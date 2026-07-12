@@ -48,6 +48,9 @@ class LayerManager:
         """停止所有核心層"""
         if self.observation_core:
             self.observation_core.stop_receiving()
+        # 記憶層也要停止，否則 UI 顯示已停止但事件仍持續寫入資料庫
+        if self.memory_core and self.memory_core.get_status().is_running:
+            self.memory_core.stop()
 
     def _connect_bridge(self):
         """連接感知層與記憶層"""
