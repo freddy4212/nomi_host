@@ -178,7 +178,7 @@ const progressPercent = computed(() => (progress.value / maxProgress.value) * 10
             <!-- Progress Bar -->
             <div v-else class="space-y-1 fade-in px-1">
               <div class="flex justify-between items-end">
-                <span class="text-[8px] font-black text-primary uppercase tracking-[0.1em]">Recording: {{ name }}</span>
+                <span class="text-[8px] font-black text-primary uppercase tracking-[0.1em]">{{ t('setup.recordingLabel') }} {{ name }}</span>
                 <span class="text-[8px] font-bold text-gray-500">{{ progress }} / {{ maxProgress }}</span>
               </div>
               <div class="relative h-1.5 bg-bgDark rounded-full overflow-hidden border border-gray-800 shadow-inner">

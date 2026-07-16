@@ -173,6 +173,35 @@ async def add_iot_device(device: DeviceCreate):
     return {"success": success}
 
 
+# --- 設定 API（語言選項持久化到 config.yaml） ---
+from control_panel.backend.modules.config_store import (SUPPORTED_LANGUAGES,
+                                                        get_language,
+                                                        set_language)
+
+
+class LanguageUpdate(BaseModel):
+    language: str
+
+
+@app.get("/api/config/language")
+async def read_language():
+    """讀取目前介面語言（config.yaml 未設定時回傳預設 en）"""
+    language = await asyncio.to_thread(get_language)
+    return {"language": language, "supported": list(SUPPORTED_LANGUAGES)}
+
+
+@app.post("/api/config/language")
+async def update_language(payload: LanguageUpdate):
+    """更新介面語言並同步寫回 config.yaml"""
+    try:
+        language = await asyncio.to_thread(set_language, payload.language)
+    except ValueError as e:
+        return {"success": False, "error": str(e), "supported": list(SUPPORTED_LANGUAGES)}
+    except Exception as e:
+        return {"success": False, "error": f"Failed to persist language: {e}"}
+    return {"success": True, "language": language}
+
+
 # --- 推論層 API ---
 class InferenceRequest(BaseModel):
     member_id: int

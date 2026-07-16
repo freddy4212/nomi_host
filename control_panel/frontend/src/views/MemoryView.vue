@@ -57,7 +57,7 @@ const editMember = (member) => {
 }
 
 const deleteMember = (member) => {
-  if (confirm(t('settings.confirmClear'))) { // Not perfect but reuse for now
+  if (confirm(t('memory.confirmDeleteMember'))) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
         type: 'command',

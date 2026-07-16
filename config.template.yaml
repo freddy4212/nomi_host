@@ -1,3 +1,7 @@
+# 介面語言 (Web Console language): en | zh | ja
+# 未設定時預設為英文 (en)
+language: "en"
+
 llm:
   api_key: "YOUR_GEMINI_API_KEY"
   model_name: "models/gemini-3-flash-preview"

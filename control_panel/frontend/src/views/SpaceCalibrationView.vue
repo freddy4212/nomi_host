@@ -10,7 +10,7 @@ const roomName = ref('')
 const isCalibrating = ref(false)
 const progress = ref(0)
 const maxProgress = ref(100)
-const statusMessage = ref(t('setup.spaceCalibrationDesc') || 'Please ensure the camera is stable')
+const statusMessage = ref(t('setup.spaceCalibrationDesc'))
 const statusType = ref('info') // info, success, error, recording
 const personCount = ref(0)
 
@@ -34,23 +34,23 @@ const connectWebSockets = () => {
           progress.value = data.progress
           maxProgress.value = data.max
           statusType.value = 'recording'
-          statusMessage.value = `Calibrating... (${Math.round((progress.value / maxProgress.value) * 100)}%)`
+          statusMessage.value = `${t('setup.calibrating')} (${Math.round((progress.value / maxProgress.value) * 100)}%)`
         } else if (data.status === 'completed') {
           isCalibrating.value = false
           progress.value = 0
           statusType.value = 'success'
-          statusMessage.value = data.message || 'Calibration Completed!'
+          statusMessage.value = data.message || t('setup.calibrationComplete')
           roomName.value = ''
         } else if (data.status === 'error') {
           isCalibrating.value = false
           progress.value = 0
           statusType.value = 'error'
-          statusMessage.value = data.message || 'Calibration Failed'
+          statusMessage.value = data.message || t('setup.calibrationFailed')
         }
       } else if (data.type === 'command_result' && data.command === 'start_calibration') {
         if (!data.success) {
           statusType.value = 'error'
-          statusMessage.value = data.message || 'Failed to start'
+          statusMessage.value = data.message || t('setup.calibrationStartFailed')
           isCalibrating.value = false
         }
       }
@@ -61,7 +61,7 @@ const connectWebSockets = () => {
 const startCalibration = () => {
   if (!roomName.value.trim()) {
     statusType.value = 'error'
-    statusMessage.value = 'Please enter room name'
+    statusMessage.value = t('setup.enterRoomError')
     return
   }
   
@@ -73,7 +73,7 @@ const startCalibration = () => {
   isCalibrating.value = true
   progress.value = 0
   statusType.value = 'recording'
-  statusMessage.value = 'Preparing...'
+  statusMessage.value = t('setup.preparing')
   
   // Send calibration command (Backend needs to implement this later)
   if (dataWs && dataWs.readyState === WebSocket.OPEN) {
@@ -95,7 +95,7 @@ const cancelCalibration = () => {
   isCalibrating.value = false
   progress.value = 0
   statusType.value = 'info'
-  statusMessage.value = 'Cancelled'
+  statusMessage.value = t('setup.cancelled')
 }
 
 onMounted(() => {
@@ -109,9 +109,9 @@ onUnmounted(() => {
 const progressPercent = computed(() => (progress.value / maxProgress.value) * 100)
 
 const zones = [
-  { id: 'bathroom', label: 'Bathroom', color: 'border-cyan-500 bg-cyan-500/10 text-cyan-400', style: { top: '30%', left: '15%', width: '10%', height: '40%' } },
-  { id: 'balcony', label: 'Balcony', color: 'border-green-500 bg-green-500/10 text-green-400', style: { top: '15%', left: '46%', width: '8%', height: '35%' } },
-  { id: 'kitchen', label: 'Kitchen', color: 'border-orange-500 bg-orange-500/10 text-orange-400', style: { top: '30%', right: '15%', width: '10%', height: '40%' } }
+  { id: 'bathroom', labelKey: 'setup.zone.bathroom', color: 'border-cyan-500 bg-cyan-500/10 text-cyan-400', style: { top: '30%', left: '15%', width: '10%', height: '40%' } },
+  { id: 'balcony', labelKey: 'setup.zone.balcony', color: 'border-green-500 bg-green-500/10 text-green-400', style: { top: '15%', left: '46%', width: '8%', height: '35%' } },
+  { id: 'kitchen', labelKey: 'setup.zone.kitchen', color: 'border-orange-500 bg-orange-500/10 text-orange-400', style: { top: '30%', right: '15%', width: '10%', height: '40%' } }
 ]
 </script>
 
@@ -142,7 +142,7 @@ const zones = [
                class="absolute border-2 border-dashed rounded-lg flex justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] backdrop-blur-[1px] transition-opacity duration-300"
                :class="[zone.color, isCalibrating ? 'opacity-30' : 'opacity-80']"
                :style="zone.style">
-            <span class="absolute -top-8 text-xs font-bold uppercase tracking-wider bg-black/50 px-2 py-1 rounded backdrop-blur-md border border-white/10 whitespace-nowrap">{{ zone.label }}</span>
+            <span class="absolute -top-8 text-xs font-bold uppercase tracking-wider bg-black/50 px-2 py-1 rounded backdrop-blur-md border border-white/10 whitespace-nowrap">{{ t(zone.labelKey) }}</span>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ const zones = [
             </svg>
             <div class="absolute text-2xl font-bold text-white">{{ Math.round((progress / maxProgress) * 100) }}%</div>
           </div>
-          <div class="mt-4 text-white font-bold tracking-wider animate-pulse uppercase">Calibrating...</div>
+          <div class="mt-4 text-white font-bold tracking-wider animate-pulse uppercase">{{ t('setup.calibrating') }}</div>
         </div>
       </div>
       
@@ -175,7 +175,7 @@ const zones = [
                 v-model="roomName"
                 type="text" 
                 class="w-full bg-bgDark/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all placeholder-gray-600 shadow-inner"
-                placeholder="Enter Room Name"
+                :placeholder="t('setup.enterRoomPlaceholder')"
               >
               <!-- Status Message -->
               <div v-if="statusMessage && statusType !== 'info'" 
@@ -188,7 +188,7 @@ const zones = [
             <!-- Progress Bar -->
             <div v-else class="space-y-1 fade-in px-1">
               <div class="flex justify-between items-end">
-                <span class="text-[8px] font-black text-primary uppercase tracking-[0.1em]">Room: {{ roomName }}</span>
+                <span class="text-[8px] font-black text-primary uppercase tracking-[0.1em]">{{ t('setup.roomLabel') }} {{ roomName }}</span>
                 <span class="text-[8px] font-bold text-gray-500">{{ progress }} / {{ maxProgress }}</span>
               </div>
               <div class="relative h-1.5 bg-bgDark rounded-full overflow-hidden border border-gray-800 shadow-inner">

@@ -315,15 +315,15 @@ const formatDate = (timestamp) => {
                   <p class="text-sm text-gray-500">{{ t('inference.eventCount') }}: {{ analysisResult.event_count }}</p>
                 </div>
                 <div class="text-right text-xs text-gray-500 font-mono">
-                  <p>Start: {{ analysisResult.period?.start }}</p>
-                  <p>End: {{ analysisResult.period?.end }}</p>
+                  <p>{{ t('inference.periodStart') }} {{ analysisResult.period?.start }}</p>
+                  <p>{{ t('inference.periodEnd') }} {{ analysisResult.period?.end }}</p>
                 </div>
               </div>
               
               <div class="bg-white/5 rounded-xl p-6 border border-white/10">
                 <h5 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Activity class="w-4 h-4" />
-                  Summary
+                  {{ t('inference.summary') }}
                 </h5>
                 <div class="prose prose-invert max-w-none">
                   <h3 class="text-xl font-bold text-secondary mb-4">{{ analysisResult.summary }}</h3>

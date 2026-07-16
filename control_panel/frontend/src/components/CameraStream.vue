@@ -2,6 +2,9 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Activity, Info, Settings2 } from 'lucide-vue-next'
 import { buildWsUrl } from '../utils/backend'
+import { useI18n } from '../composables/useI18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   showInfoButton: {
@@ -173,8 +176,7 @@ const modes = [
       <div v-else class="w-full h-full flex items-center justify-center text-gray-600 flex-col gap-2 bg-black">
         <Activity class="w-10 h-10 animate-pulse opacity-50" />
         <div class="text-center">
-          <p class="text-sm font-bold">等待影像訊號...</p>
-          <p class="text-xs opacity-50">Waiting for video stream</p>
+          <p class="text-sm font-bold">{{ t('perception.waitingVideo') }}</p>
         </div>
       </div>
       

@@ -37,8 +37,8 @@ defineEmits(['select', 'edit', 'delete'])
     >
       <button 
         @click.stop="$emit('edit', member)"
-        class="w-8 h-8 flex items-center justify-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded-full border border-green-500/30 transition-colors" 
-        :title="t('common.confirm')"
+        class="w-8 h-8 flex items-center justify-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded-full border border-green-500/30 transition-colors"
+        :title="t('common.edit')"
       >
         <Pencil class="w-4 h-4" />
       </button>

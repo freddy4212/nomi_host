@@ -19,7 +19,12 @@ export const zh = {
     confirm: '確認',
     cancel: '取消',
     delete: '刪除',
-    save: '儲存'
+    save: '儲存',
+    edit: '編輯',
+    error: '錯誤',
+    retry: '重試',
+    currentLanguage: '目前顯示語言',
+    switchLanguage: '切換語言'
   },
   perception: {
     noPerson: '無人偵測',
@@ -31,11 +36,24 @@ export const zh = {
     skeletonStatus: '骨架狀態',
     identification: '識別',
     unknown: '未知',
-    person: '人'
+    person: '人',
+    deviceInfo: '裝置資訊',
+    version: '版本:',
+    model: '型號:',
+    frameInfo: '幀資訊',
+    tick: 'Tick:',
+    frameNo: '幀編號:',
+    interpolation: '補幀',
+    ready: '就緒',
+    buffering: '緩衝中...',
+    rawFrame: '原始幀:',
+    buffedFrame: '補幀:',
+    waitingVideo: '等待影像訊號...'
   },
   setup: {
     vectorEntry: '向量錄入',
     spaceCalibration: '空間標定',
+    spaceCalibrationDesc: '請確保攝影機保持穩定',
     developing: '功能開發中...',
     memberName: '成員名稱',
     enterNamePlaceholder: '請輸入名稱 (例如: 王小明)',
@@ -49,7 +67,20 @@ export const zh = {
     personCountError: '畫面中必須剛好只有一個人才能開始錄製',
     preparing: '準備開始錄製...',
     cancelled: '已取消錄製',
-    personInfo: '人員資訊'
+    personInfo: '人員資訊',
+    calibrating: '標定中...',
+    calibrationComplete: '標定完成！',
+    calibrationFailed: '標定失敗',
+    calibrationStartFailed: '啟動失敗',
+    enterRoomError: '請輸入房間名稱',
+    enterRoomPlaceholder: '請輸入房間名稱',
+    roomLabel: '房間:',
+    recordingLabel: '錄製中:',
+    zone: {
+      bathroom: '浴室',
+      balcony: '陽台',
+      kitchen: '廚房'
+    }
   },
   settings: {
     themeTitle: '介面主題',
@@ -58,6 +89,7 @@ export const zh = {
     lightMode: '淺色模式',
     switchToLight: '切換為淺色模式',
     switchToDark: '切換為深色模式',
+    languageDesc: '選擇介面顯示語言',
     systemControl: '系統控制',
     serviceTitle: '接收服務',
     serviceRunning: '服務正在運行中',
@@ -92,7 +124,9 @@ export const zh = {
       all: '所有'
     },
     samples: '樣本',
-    updated: '更新'
+    updated: '更新',
+    confirmDeleteMember: '確定要刪除此成員嗎？此動作無法復原。',
+    noEvents: '尚無事件記錄'
   },
   memberState: {
     lastAction: '最後動作',
@@ -108,11 +142,31 @@ export const zh = {
     analyzing: '正在分析行為數據...',
     eventCount: '分析事件數',
     noData: '未找到相關成員資料',
-    checkSystem: '請確認系統是否已開始接收數據'
+    checkSystem: '請確認系統是否已開始接收數據',
+    periodStart: '開始:',
+    periodEnd: '結束:',
+    summary: '摘要',
+    group: '群組',
+    idle: '無行動',
+    noRecord: '無紀錄',
+    timeline: '時間軸',
+    noRecentActivity: '近期無動態',
+    selStart: '起',
+    selEnd: '迄',
+    runAnalysis: '推論分析',
+    analyzingShort: '分析中...',
+    analysisTarget: '分析對象',
+    eventsUnit: '筆'
   },
   iot: {
     title: 'IoT 裝置管理',
-    noDevices: '尚未添加任何裝置'
+    noDevices: '尚未添加任何裝置',
+    addDevice: '新增裝置',
+    addDeviceDeveloping: '新增裝置功能開發中',
+    editDevicePrefix: '編輯裝置: ',
+    confirmDeletePrefix: '確定要刪除 ',
+    confirmDeleteSuffix: ' 嗎？',
+    deleteDeveloping: '刪除功能開發中'
   },
   timeline: {
     latest: '最新動態靠左',
@@ -131,6 +185,7 @@ export const zh = {
     '跳躍': '跳躍',
     '坐著': '坐著',
     '躺著': '躺著',
+    '躺下': '躺下',
     '走動': '走動',
     '行走': '行走',
     '站立': '站立',
@@ -141,7 +196,9 @@ export const zh = {
     '離開': '離開',
     '無行動': '無行動',
     '上:': '上:',
-    '下:': '下:'
+    '下:': '下:',
+    'Online': '在線',
+    'Offline': '離線'
   }
 }
 
@@ -166,7 +223,12 @@ export const en = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     delete: 'Delete',
-    save: 'Save'
+    save: 'Save',
+    edit: 'Edit',
+    error: 'Error',
+    retry: 'Retry',
+    currentLanguage: 'Current Language',
+    switchLanguage: 'Switch Language'
   },
   perception: {
     noPerson: 'No Detection',
@@ -178,11 +240,24 @@ export const en = {
     skeletonStatus: 'Skeleton Status',
     identification: 'Identification',
     unknown: 'Unknown',
-    person: 'Person(s)'
+    person: 'Person(s)',
+    deviceInfo: 'Device Info',
+    version: 'Version:',
+    model: 'Model:',
+    frameInfo: 'Frame Info',
+    tick: 'Tick:',
+    frameNo: 'Frame No:',
+    interpolation: 'Interpolation',
+    ready: 'Ready',
+    buffering: 'Buffering...',
+    rawFrame: 'Raw Frame:',
+    buffedFrame: 'Buffed Frame:',
+    waitingVideo: 'Waiting for video stream...'
   },
   setup: {
     vectorEntry: 'Vector Entry',
     spaceCalibration: 'Space Calibration',
+    spaceCalibrationDesc: 'Please ensure the camera is stable',
     developing: 'Coming Soon...',
     memberName: 'Member Name',
     enterNamePlaceholder: 'Enter name (e.g. John Doe)',
@@ -196,7 +271,20 @@ export const en = {
     personCountError: 'Exactly one person must be in view to start',
     preparing: 'Preparing to record...',
     cancelled: 'Recording cancelled',
-    personInfo: 'Person Info'
+    personInfo: 'Person Info',
+    calibrating: 'Calibrating...',
+    calibrationComplete: 'Calibration Completed!',
+    calibrationFailed: 'Calibration Failed',
+    calibrationStartFailed: 'Failed to start',
+    enterRoomError: 'Please enter room name',
+    enterRoomPlaceholder: 'Enter Room Name',
+    roomLabel: 'Room:',
+    recordingLabel: 'Recording:',
+    zone: {
+      bathroom: 'Bathroom',
+      balcony: 'Balcony',
+      kitchen: 'Kitchen'
+    }
   },
   settings: {
     themeTitle: 'Appearance',
@@ -205,6 +293,7 @@ export const en = {
     lightMode: 'Light Mode',
     switchToLight: 'Switch to Light Mode',
     switchToDark: 'Switch to Dark Mode',
+    languageDesc: 'Choose the interface display language',
     systemControl: 'System Control',
     serviceTitle: 'Receiver Service',
     serviceRunning: 'Service is running',
@@ -239,7 +328,9 @@ export const en = {
       all: 'All'
     },
     samples: 'Samples',
-    updated: 'Updated'
+    updated: 'Updated',
+    confirmDeleteMember: 'Are you sure you want to delete this member? This cannot be undone.',
+    noEvents: 'No events yet'
   },
   memberState: {
     lastAction: 'Last Action',
@@ -255,11 +346,31 @@ export const en = {
     analyzing: 'Analyzing behavior data...',
     eventCount: 'Events Analyzed',
     noData: 'No member data found',
-    checkSystem: 'Please ensure system is receiving data'
+    checkSystem: 'Please ensure system is receiving data',
+    periodStart: 'Start:',
+    periodEnd: 'End:',
+    summary: 'Summary',
+    group: 'Group',
+    idle: 'Idle',
+    noRecord: 'No record',
+    timeline: 'Timeline',
+    noRecentActivity: 'No recent activity',
+    selStart: 'START',
+    selEnd: 'END',
+    runAnalysis: 'Run Analysis',
+    analyzingShort: 'Analyzing...',
+    analysisTarget: 'Analysis Target',
+    eventsUnit: 'events'
   },
   iot: {
     title: 'IoT Manager',
-    noDevices: 'No devices added yet'
+    noDevices: 'No devices added yet',
+    addDevice: 'Add Device',
+    addDeviceDeveloping: 'Add device feature coming soon',
+    editDevicePrefix: 'Edit device: ',
+    confirmDeletePrefix: 'Delete ',
+    confirmDeleteSuffix: '?',
+    deleteDeveloping: 'Delete feature coming soon'
   },
   timeline: {
     latest: 'Latest events on the left',
@@ -289,8 +400,214 @@ export const en = {
     '離開': 'Left',
     '無行動': 'Idle',
     '上:': 'Up:',
-    '下:': 'Down:'
+    '下:': 'Down:',
+    'Online': 'Online',
+    'Offline': 'Offline'
   }
 }
 
-export default { zh, en }
+export const ja = {
+  nav: {
+    perception: '観測',
+    memory: '記憶',
+    inference: '推論',
+    iot: 'IoT管理',
+    setup: '登録・設定',
+    settings: '設定'
+  },
+  common: {
+    language: '言語',
+    status: '状態',
+    connected: '接続済み',
+    disconnected: '未接続',
+    active: '送信中',
+    idle: '接続済み（アイドル）',
+    lagging: '接続済み（遅延）',
+    loading: '読み込み中...',
+    confirm: '確認',
+    cancel: 'キャンセル',
+    delete: '削除',
+    save: '保存',
+    edit: '編集',
+    error: 'エラー',
+    retry: '再試行',
+    currentLanguage: '現在の表示言語',
+    switchLanguage: '言語を切り替える'
+  },
+  perception: {
+    noPerson: '検出なし',
+    action: '動作',
+    confidence: '信頼度',
+    duration: '継続時間',
+    magnitude: '動きの強さ',
+    environment: '環境',
+    skeletonStatus: '骨格状態',
+    identification: '識別',
+    unknown: '不明',
+    person: '人',
+    deviceInfo: 'デバイス情報',
+    version: 'バージョン:',
+    model: 'モデル:',
+    frameInfo: 'フレーム情報',
+    tick: 'Tick:',
+    frameNo: 'フレーム番号:',
+    interpolation: '補間',
+    ready: '準備完了',
+    buffering: 'バッファリング中...',
+    rawFrame: '元フレーム:',
+    buffedFrame: '補間フレーム:',
+    waitingVideo: '映像信号を待機中...'
+  },
+  setup: {
+    vectorEntry: 'ベクトル登録',
+    spaceCalibration: '空間キャリブレーション',
+    spaceCalibrationDesc: 'カメラが安定していることを確認してください',
+    developing: '開発中...',
+    memberName: 'メンバー名',
+    enterNamePlaceholder: '名前を入力 (例: 山田太郎)',
+    recordingDesc: '名前を入力し、画面内に一人だけが映っていることを確認してください',
+    startRecording: '録画開始',
+    cancelRecording: 'キャンセル',
+    recordingProgress: '録画中...',
+    recordComplete: '録画完了！',
+    recordFailed: '録画失敗',
+    inputNameError: '先にメンバー名を入力してください',
+    personCountError: '開始するには画面内にちょうど一人だけが必要です',
+    preparing: '録画の準備中...',
+    cancelled: '録画をキャンセルしました',
+    personInfo: '人物情報',
+    calibrating: 'キャリブレーション中...',
+    calibrationComplete: 'キャリブレーション完了！',
+    calibrationFailed: 'キャリブレーション失敗',
+    calibrationStartFailed: '開始に失敗しました',
+    enterRoomError: '部屋名を入力してください',
+    enterRoomPlaceholder: '部屋名を入力',
+    roomLabel: '部屋:',
+    recordingLabel: '録画中:',
+    zone: {
+      bathroom: '浴室',
+      balcony: 'バルコニー',
+      kitchen: 'キッチン'
+    }
+  },
+  settings: {
+    themeTitle: '外観',
+    themeDesc: 'ダークモードとライトモードを切り替える',
+    darkMode: 'ダークモード',
+    lightMode: 'ライトモード',
+    switchToLight: 'ライトモードに切り替える',
+    switchToDark: 'ダークモードに切り替える',
+    languageDesc: 'インターフェースの表示言語を選択',
+    systemControl: 'システム制御',
+    serviceTitle: '受信サービス',
+    serviceRunning: 'サービスは稼働中です',
+    serviceStopped: 'サービスは停止しました',
+    startService: 'サービスを開始',
+    stopService: 'サービスを停止',
+    databaseTitle: 'データベース管理',
+    databaseDesc: '永続データとイベントログを管理',
+    clearMemory: 'メモリを消去',
+    confirmClear: 'すべてのイベント記憶を消去しますか？この操作は元に戻せません。',
+    memoryCleared: 'イベント記憶を消去しました'
+  },
+  memory: {
+    title: 'データ記憶',
+    searchPlaceholder: 'メンバーまたは動作を検索...',
+    refresh: '更新',
+    pause: '自動更新を一時停止',
+    resume: '自動更新を再開',
+    time: '時刻',
+    personId: '人物ID',
+    member: '識別メンバー',
+    action: '動作',
+    confidence: '信頼度',
+    duration: '継続時間',
+    selectTimeRange: '期間を選択',
+    unknownVisitor: '不明な訪問者',
+    timeRange: {
+      lastHour: '直近1時間',
+      today: '今日',
+      thisWeek: '今週',
+      thisMonth: '今月',
+      all: 'すべて'
+    },
+    samples: 'サンプル',
+    updated: '更新',
+    confirmDeleteMember: 'このメンバーを削除しますか？この操作は元に戻せません。',
+    noEvents: 'イベント記録がありません'
+  },
+  memberState: {
+    lastAction: '最後の動作',
+    lastSeen: '最終検出',
+    location: '位置',
+    visible: 'オンライン',
+    away: 'オフライン'
+  },
+  inference: {
+    title: '推論履歴',
+    reqFailed: '推論リクエストに失敗しました',
+    report: '行動分析レポート',
+    analyzing: '行動データを分析中...',
+    eventCount: '分析イベント数',
+    noData: 'メンバーデータが見つかりません',
+    checkSystem: 'システムがデータを受信しているか確認してください',
+    periodStart: '開始:',
+    periodEnd: '終了:',
+    summary: '概要',
+    group: 'グループ',
+    idle: '動きなし',
+    noRecord: '記録なし',
+    timeline: 'タイムライン',
+    noRecentActivity: '最近の活動はありません',
+    selStart: '開始',
+    selEnd: '終了',
+    runAnalysis: '推論分析',
+    analyzingShort: '分析中...',
+    analysisTarget: '分析対象',
+    eventsUnit: '件'
+  },
+  iot: {
+    title: 'IoT管理',
+    noDevices: 'デバイスがまだ追加されていません',
+    addDevice: 'デバイスを追加',
+    addDeviceDeveloping: 'デバイス追加機能は開発中です',
+    editDevicePrefix: 'デバイスを編集: ',
+    confirmDeletePrefix: '',
+    confirmDeleteSuffix: ' を削除しますか？',
+    deleteDeveloping: '削除機能は開発中です'
+  },
+  timeline: {
+    latest: '最新のイベントが左側',
+    noActivity: '活動なし'
+  },
+  dynamic: {
+    '等待偵測...': '検出待ち...',
+    '等待識別...': '識別待ち...',
+    '等待識別': '識別待ち',
+    '偵測中': '検出中',
+    '可能坐著': '着席の可能性',
+    '全身可見': '全身が見える',
+    '部分可見': '一部が見える',
+    '可能跌倒': '転倒の可能性',
+    '跌倒': '転倒',
+    '跳躍': 'ジャンプ',
+    '坐著': '着席',
+    '躺著': '横たわる',
+    '躺下': '横たわる',
+    '走動': '歩行',
+    '行走': '歩行',
+    '站立': '起立',
+    '靜止': '静止',
+    '劇烈': '激しい',
+    '移動': '移動',
+    '未知': '不明',
+    '離開': '退出',
+    '無行動': '動きなし',
+    '上:': '上:',
+    '下:': '下:',
+    'Online': 'オンライン',
+    'Offline': 'オフライン'
+  }
+}
+
+export default { zh, en, ja }

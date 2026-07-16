@@ -26,7 +26,7 @@ defineProps<{
         </div>
         <div>
           <div class="font-bold text-white">{{ state.member_name || t('perception.unknown') }}</div>
-          <div class="text-[10px] text-gray-500 uppercase tracking-tighter font-mono">Person ID: {{ state.person_id }}</div>
+          <div class="text-[10px] text-gray-500 uppercase tracking-tighter font-mono">{{ t('memory.personId') }}: {{ state.person_id }}</div>
         </div>
       </div>
       <div class="px-2 py-1 rounded text-[10px] font-bold uppercase" 

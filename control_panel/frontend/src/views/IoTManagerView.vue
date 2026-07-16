@@ -9,7 +9,7 @@ import {
 } from 'lucide-vue-next'
 import { buildApiUrl } from '../utils/backend'
 
-const { t } = useI18n()
+const { t, tDynamic } = useI18n()
 const devices = ref<any[]>([])
 const loading = ref(true)
 const activeMenuId = ref<number | null>(null)
@@ -51,7 +51,7 @@ const fetchDevices = async () => {
 }
 
 const addDevice = () => {
-  alert('新增裝置功能開發中')
+  alert(t('iot.addDeviceDeveloping'))
 }
 
 const toggleDeviceMenu = (id: number) => {
@@ -63,13 +63,13 @@ const toggleDeviceMenu = (id: number) => {
 }
 
 const editDevice = (device: any) => {
-  alert(`編輯裝置: ${device.name}`)
+  alert(t('iot.editDevicePrefix') + device.name)
   activeMenuId.value = null
 }
 
 const deleteDevice = (device: any) => {
-  if (confirm(`確定要刪除 ${device.name} 嗎？`)) {
-    alert('刪除功能開發中')
+  if (confirm(t('iot.confirmDeletePrefix') + device.name + t('iot.confirmDeleteSuffix'))) {
+    alert(t('iot.deleteDeveloping'))
   }
   activeMenuId.value = null
 }
@@ -116,11 +116,11 @@ onUnmounted(() => {
               class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
               :class="device.status === 'Online' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'"
             >
-              {{ device.status }}
+              {{ tDynamic(device.status) }}
             </span>
           </div>
           <div class="flex items-center gap-2 mt-0.5">
-            <span class="text-xs text-gray-400 truncate">{{ device.type }}</span>
+            <span class="text-xs text-gray-400 truncate">{{ tDynamic(device.type) }}</span>
             <span v-if="device.location" class="text-[10px] text-gray-500 shrink-0">• {{ device.location }}</span>
           </div>
         </div>
@@ -139,7 +139,7 @@ onUnmounted(() => {
                @click.stop
           >
             <button @click="editDevice(device)" class="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-white/5 flex items-center gap-2">
-              <Pencil class="w-3 h-3" /> {{ t('common.confirm') }}
+              <Pencil class="w-3 h-3" /> {{ t('common.edit') }}
             </button>
             <button @click="deleteDevice(device)" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2">
               <Trash2 class="w-3 h-3" /> {{ t('common.delete') }}
@@ -156,7 +156,7 @@ onUnmounted(() => {
         class="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/20"
       >
         <Plus class="w-4 h-4" />
-        {{ t('common.save') }}
+        {{ t('iot.addDevice') }}
       </button>
     </div>
   </div>

@@ -192,7 +192,7 @@ const startInference = async () => {
   } catch (e: any) {
     console.error('Inference failed', e)
     inferenceStatus.value = 'error'
-    inferenceResult.value = { error: '推論請求失敗: ' + e.message }
+    inferenceResult.value = { error: t('inference.reqFailed') + ': ' + e.message }
   }
 }
 
@@ -283,13 +283,13 @@ onUnmounted(() => {
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
             <h3 class="font-bold text-white truncate">{{ member.name }}</h3>
-            <span v-if="isUnknownGroup" class="px-1.5 py-0.5 rounded bg-gray-700 text-[10px] text-gray-400 font-bold uppercase">Group</span>
+            <span v-if="isUnknownGroup" class="px-1.5 py-0.5 rounded bg-gray-700 text-[10px] text-gray-400 font-bold uppercase">{{ t('inference.group') }}</span>
           </div>
           <div class="text-[10px] text-gray-500 uppercase tracking-tighter font-mono">ID: {{ member.id }}</div>
           
           <div class="mt-1 flex items-center gap-2 text-xs text-secondary font-medium">
             <Brain class="w-3 h-3" />
-            <span class="truncate">{{ tDynamic(member.lastAction || 'Idle') }}</span>
+            <span class="truncate">{{ member.lastAction ? tDynamic(member.lastAction) : t('inference.idle') }}</span>
           </div>
 
           <!-- Location & Last Seen -->
@@ -300,7 +300,7 @@ onUnmounted(() => {
             </div>
             <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-gray-400 border border-white/5 w-fit">
               <Clock class="w-2.5 h-2.5 text-gray-500" />
-              <span>{{ member.lastSeen ? formatDateWithYear(member.lastSeen) : '無紀錄' }}</span>
+              <span>{{ member.lastSeen ? formatDateWithYear(member.lastSeen) : t('inference.noRecord') }}</span>
             </div>
           </div>
         </div>
@@ -322,7 +322,7 @@ onUnmounted(() => {
           <div class="flex items-center gap-4 text-[10px] text-gray-500 uppercase tracking-widest font-bold">
             <div class="flex items-center gap-1">
               <Clock class="w-3 h-3" />
-              <span>Timeline</span>
+              <span>{{ t('inference.timeline') }}</span>
             </div>
           </div>
         </div>
@@ -333,7 +333,7 @@ onUnmounted(() => {
           class="min-h-[150px] overflow-x-auto overflow-y-hidden p-4 flex gap-3 items-start custom-scrollbar relative select-none"
         >
           <div v-if="member.events.length === 0" class="text-gray-600 text-xs italic px-4">
-            No recent activity
+            {{ t('inference.noRecentActivity') }}
           </div>
 
           <div 
@@ -356,10 +356,10 @@ onUnmounted(() => {
             >
               <!-- Selection Indicators -->
               <div v-if="selectionStartId === getEventKey(event)" class="absolute -top-2 -left-1 bg-secondary text-white text-[8px] font-bold px-1 rounded shadow-lg z-20">
-                START
+                {{ t('inference.selStart') }}
               </div>
               <div v-if="selectionEndId === getEventKey(event)" class="absolute -top-2 -right-1 bg-secondary text-white text-[8px] font-bold px-1 rounded shadow-lg z-20">
-                END
+                {{ t('inference.selEnd') }}
               </div>
 
               <div class="flex justify-between items-center mb-1">
@@ -384,7 +384,7 @@ onUnmounted(() => {
               @click.stop="clearSelection"
               class="w-full h-6 bg-gray-700/30 hover:bg-red-500/20 text-gray-500 hover:text-red-400 text-[10px] rounded flex items-center justify-center transition-colors border border-transparent hover:border-red-500/30 backdrop-blur-sm"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
           </div>
 
@@ -400,7 +400,7 @@ onUnmounted(() => {
                   class="w-full h-6 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/30 hover:border-secondary/50 rounded flex items-center justify-center text-[10px] font-bold tracking-wider transition-all shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] backdrop-blur-sm"
               >
                   <Brain class="w-3 h-3 mr-1" />
-                  推論分析
+                  {{ t('inference.runAnalysis') }}
               </button>
 
               <!-- Loading State: Progress Bar -->
@@ -408,7 +408,7 @@ onUnmounted(() => {
                   <div class="absolute inset-0 bg-secondary/10 animate-pulse w-full"></div>
                   <span class="relative z-10 text-[10px] text-gray-300 flex items-center gap-1 font-medium">
                       <Loader class="w-3 h-3 animate-spin text-secondary" />
-                      分析中...
+                      {{ t('inference.analyzingShort') }}
                   </span>
               </div>
 
@@ -431,8 +431,8 @@ onUnmounted(() => {
               <!-- Error State -->
               <div v-else-if="inferenceStatus === 'error'" class="w-full h-6 px-2 bg-red-500/20 border border-red-500/30 rounded flex items-center gap-1 text-[10px] text-red-400 backdrop-blur-sm">
                   <X class="w-3 h-3" />
-                  <span class="truncate">{{ inferenceResult?.error || '錯誤' }}</span>
-                  <button @click="inferenceStatus = 'idle'" class="ml-auto underline hover:text-red-300">重試</button>
+                  <span class="truncate">{{ inferenceResult?.error || t('common.error') }}</span>
+                  <button @click="inferenceStatus = 'idle'" class="ml-auto underline hover:text-red-300">{{ t('common.retry') }}</button>
               </div>
           </div>
 
@@ -448,7 +448,7 @@ onUnmounted(() => {
           <div class="p-5 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
             <div class="flex items-center gap-3">
               <Brain class="w-6 h-6 text-secondary" />
-              <h3 class="text-lg font-bold text-white">行為分析報告</h3>
+              <h3 class="text-lg font-bold text-white">{{ t('inference.report') }}</h3>
             </div>
             <button @click="toggleResultDetails" class="text-gray-400 hover:text-white transition-colors">
               <X class="w-6 h-6" />
@@ -464,12 +464,12 @@ onUnmounted(() => {
              <!-- Metadata -->
              <div class="mt-6 pt-4 border-t border-gray-800 grid grid-cols-2 gap-4 text-sm text-gray-500">
                 <div>
-                   <span class="block text-gray-600 mb-1">分析對象</span>
+                   <span class="block text-gray-600 mb-1">{{ t('inference.analysisTarget') }}</span>
                    <span class="text-gray-400">{{ member.name }} (ID: {{ member.id }})</span>
                 </div>
                 <div>
-                   <span class="block text-gray-600 mb-1">事件數量</span>
-                   <span class="text-gray-400">{{ inferenceResult?.event_count || 0 }} 筆</span>
+                   <span class="block text-gray-600 mb-1">{{ t('inference.eventCount') }}</span>
+                   <span class="text-gray-400">{{ inferenceResult?.event_count || 0 }} {{ t('inference.eventsUnit') }}</span>
                 </div>
              </div>
           </div>

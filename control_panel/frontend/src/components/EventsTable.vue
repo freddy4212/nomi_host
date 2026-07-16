@@ -45,7 +45,7 @@ const formatEnvironment = (env: any) => {
             <td colspan="9" class="p-12 text-center">
               <div class="flex flex-col items-center gap-2">
                 <Database class="w-12 h-12 opacity-10" />
-                <p>{{ selectedMemberId ? t('common.loading') : t('common.loading') }}</p>
+                <p>{{ t('memory.noEvents') }}</p>
               </div>
             </td>
           </tr>

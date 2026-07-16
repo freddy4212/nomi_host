@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Play, Square, Trash2, Languages, Sun, Moon } from 'lucide-vue-next'
+import { Play, Square, Trash2, Sun, Moon } from 'lucide-vue-next'
 import { useI18n } from '../composables/useI18n'
 import { useTheme } from '../composables/useTheme'
 import { buildWsUrl } from '../utils/backend'
 
-const { t, locale, toggleLocale } = useI18n()
+const { t, locale, setLocale, supportedLocales, localeLabels } = useI18n()
 const { theme, toggleTheme } = useTheme()
 const emit = defineEmits(['status-update'])
 
@@ -122,26 +122,26 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- System Control -->
+    <!-- Language -->
     <section>
       <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
         {{ t('common.language') }}
       </h3>
       <div class="bg-bgLight rounded-xl border border-gray-700 p-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="font-bold text-white">{{ locale === 'zh' ? '繁體中文' : 'English' }}</div>
-            <div class="text-xs text-gray-400 mt-1">
-              {{ locale === 'zh' ? '目前顯示語言' : 'Current Language' }}
-            </div>
-          </div>
-          
-          <button 
-            @click="toggleLocale"
-            class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg bg-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white border border-blue-500/50"
-            :title="locale === 'zh' ? 'Switch to English' : '切換為中文'"
+        <div class="text-xs text-gray-400 mb-3">
+          {{ t('settings.languageDesc') }}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="loc in supportedLocales"
+            :key="loc"
+            @click="setLocale(loc)"
+            class="flex-1 min-w-[90px] px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 border"
+            :class="locale === loc
+              ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
+              : 'bg-transparent text-gray-300 border-gray-600 hover:border-blue-500/60 hover:text-white'"
           >
-            <Languages class="w-6 h-6" />
+            {{ localeLabels[loc] }}
           </button>
         </div>
       </div>

@@ -128,13 +128,13 @@ const formatStatus = (statusStr) => {
                     <div class="w-full shrink-0 px-0.5">
                       <div class="bg-bgLight/50 rounded-xl p-2.5 border border-white/5 h-full">
                         <div class="text-gray-400 text-[9px] uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                          <Monitor class="w-3 h-3" /> Device Info
+                          <Monitor class="w-3 h-3" /> {{ t('perception.deviceInfo') }}
                         </div>
                         <div>
                           <div class="text-sm font-bold text-white truncate mb-1">{{ deviceId }}</div>
                           <div class="text-[10px] text-gray-500 font-mono space-y-0.5">
-                            <div class="flex justify-between"><span>Version:</span> <span class="text-gray-300">{{ deviceVersion }}</span></div>
-                            <div class="flex justify-between"><span>Model:</span> <span class="text-gray-300">{{ deviceModel }}</span></div>
+                            <div class="flex justify-between"><span>{{ t('perception.version') }}</span> <span class="text-gray-300">{{ deviceVersion }}</span></div>
+                            <div class="flex justify-between"><span>{{ t('perception.model') }}</span> <span class="text-gray-300">{{ deviceModel }}</span></div>
                           </div>
                         </div>
                       </div>
@@ -144,15 +144,15 @@ const formatStatus = (statusStr) => {
                     <div class="w-full shrink-0 px-0.5">
                       <div class="bg-bgLight/50 rounded-xl p-2.5 border border-white/5 h-full">
                         <div class="text-gray-400 text-[9px] uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                          <Layers class="w-3 h-3" /> Frame Info
+                          <Layers class="w-3 h-3" /> {{ t('perception.frameInfo') }}
                         </div>
                         <div class="flex items-baseline gap-2 mb-1">
                           <div class="text-lg font-bold text-primary">{{ fps }}</div>
                           <div class="text-[9px] text-gray-500 font-bold">FPS</div>
                         </div>
                         <div class="text-[10px] text-gray-400 font-mono space-y-0.5">
-                          <div class="flex justify-between"><span>Tick:</span> <span class="text-gray-300">{{ algoTick }}</span></div>
-                          <div class="flex justify-between"><span>Frame No:</span> <span class="text-gray-300">{{ frameNo }}</span></div>
+                          <div class="flex justify-between"><span>{{ t('perception.tick') }}</span> <span class="text-gray-300">{{ algoTick }}</span></div>
+                          <div class="flex justify-between"><span>{{ t('perception.frameNo') }}</span> <span class="text-gray-300">{{ frameNo }}</span></div>
                         </div>
                       </div>
                     </div>
@@ -161,14 +161,14 @@ const formatStatus = (statusStr) => {
                     <div class="w-full shrink-0 px-0.5">
                       <div class="bg-bgLight/50 rounded-xl p-2.5 border border-white/5 h-full">
                         <div class="text-gray-400 text-[9px] uppercase tracking-wider flex items-center gap-1 mb-1.5">
-                          <Activity class="w-3 h-3" /> Interpolation
+                          <Activity class="w-3 h-3" /> {{ t('perception.interpolation') }}
                         </div>
                         <div class="text-sm font-bold mb-1" :class="bufferStatus.sequence_ready ? 'text-secondary' : 'text-yellow-500'">
-                          {{ bufferStatus.sequence_ready ? 'Ready' : 'Buffering...' }}
+                          {{ bufferStatus.sequence_ready ? t('perception.ready') : t('perception.buffering') }}
                         </div>
                         <div class="text-[10px] text-gray-400 font-mono space-y-0.5">
-                          <div class="flex justify-between"><span>Raw Frame:</span> <span class="text-gray-300">{{ bufferStatus.raw_frames || 0 }}</span></div>
-                          <div class="flex justify-between"><span>Buffed Frame:</span> <span class="text-gray-300">{{ bufferStatus.interpolated_frames || 0 }}</span></div>
+                          <div class="flex justify-between"><span>{{ t('perception.rawFrame') }}</span> <span class="text-gray-300">{{ bufferStatus.raw_frames || 0 }}</span></div>
+                          <div class="flex justify-between"><span>{{ t('perception.buffedFrame') }}</span> <span class="text-gray-300">{{ bufferStatus.interpolated_frames || 0 }}</span></div>
                         </div>
                       </div>
                     </div>
@@ -204,13 +204,13 @@ const formatStatus = (statusStr) => {
             <!-- Card 1: Device Info -->
             <div class="bg-bgLight rounded-2xl p-5 border border-gray-700 flex flex-col shadow-lg">
               <div class="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2 mb-3">
-                <Monitor class="w-4 h-4" /> Device Info
+                <Monitor class="w-4 h-4" /> {{ t('perception.deviceInfo') }}
               </div>
               <div class="flex flex-col justify-center">
                 <div class="text-2xl font-bold text-white truncate leading-tight mb-2" :title="deviceId">{{ deviceId }}</div>
                 <div class="text-xs text-gray-500 font-mono space-y-1.5">
-                  <div class="flex justify-between items-center"><span>Version:</span> <span class="text-gray-300">{{ deviceVersion }}</span></div>
-                  <div class="flex justify-between items-center"><span>Model:</span> <span class="text-gray-300">{{ deviceModel }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.version') }}</span> <span class="text-gray-300">{{ deviceVersion }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.model') }}</span> <span class="text-gray-300">{{ deviceModel }}</span></div>
                 </div>
               </div>
             </div>
@@ -218,7 +218,7 @@ const formatStatus = (statusStr) => {
             <!-- Card 2: Frame Info -->
             <div class="bg-bgLight rounded-2xl p-5 border border-gray-700 flex flex-col shadow-lg">
               <div class="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2 mb-3">
-                <Layers class="w-4 h-4" /> Frame Info
+                <Layers class="w-4 h-4" /> {{ t('perception.frameInfo') }}
               </div>
               <div class="flex flex-col justify-center">
                 <div class="flex items-baseline gap-1.5 mb-2">
@@ -226,8 +226,8 @@ const formatStatus = (statusStr) => {
                   <div class="text-xs text-gray-500 font-bold">FPS</div>
                 </div>
                 <div class="text-xs text-gray-500 font-mono space-y-1.5">
-                  <div class="flex justify-between items-center"><span>Tick:</span> <span class="text-gray-300">{{ algoTick }}</span></div>
-                  <div class="flex justify-between items-center"><span>Frame No:</span> <span class="text-gray-300">{{ frameNo }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.tick') }}</span> <span class="text-gray-300">{{ algoTick }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.frameNo') }}</span> <span class="text-gray-300">{{ frameNo }}</span></div>
                 </div>
               </div>
             </div>
@@ -235,15 +235,15 @@ const formatStatus = (statusStr) => {
             <!-- Card 3: Interpolation -->
             <div class="bg-bgLight rounded-2xl p-5 border border-gray-700 flex flex-col shadow-lg">
               <div class="text-gray-400 text-xs uppercase tracking-wider flex items-center gap-2 mb-3">
-                <Activity class="w-4 h-4" /> Interpolation
+                <Activity class="w-4 h-4" /> {{ t('perception.interpolation') }}
               </div>
               <div class="flex flex-col justify-center">
                 <div class="text-2xl font-bold leading-tight mb-2" :class="bufferStatus.sequence_ready ? 'text-secondary' : 'text-yellow-500'">
-                  {{ bufferStatus.sequence_ready ? 'Ready' : 'Buffering...' }}
+                  {{ bufferStatus.sequence_ready ? t('perception.ready') : t('perception.buffering') }}
                 </div>
                 <div class="text-xs text-gray-500 font-mono space-y-1.5">
-                  <div class="flex justify-between items-center"><span>Raw Frame:</span> <span class="text-gray-300">{{ bufferStatus.raw_frames || 0 }}</span></div>
-                  <div class="flex justify-between items-center"><span>Buffed Frame:</span> <span class="text-gray-300">{{ bufferStatus.interpolated_frames || 0 }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.rawFrame') }}</span> <span class="text-gray-300">{{ bufferStatus.raw_frames || 0 }}</span></div>
+                  <div class="flex justify-between items-center"><span>{{ t('perception.buffedFrame') }}</span> <span class="text-gray-300">{{ bufferStatus.interpolated_frames || 0 }}</span></div>
                 </div>
               </div>
             </div>
@@ -259,7 +259,6 @@ const formatStatus = (statusStr) => {
           <div class="text-center">
             <User class="w-16 h-16 mx-auto mb-4 opacity-20" />
             <p class="text-lg font-medium">{{ t('perception.noPerson') }}</p>
-            <p class="text-sm opacity-60">No Person Detected</p>
           </div>
         </div>
 
