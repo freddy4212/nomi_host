@@ -27,3 +27,5 @@ config.yaml
 node_modules
 
 # NOMI HOST
+control_panel/frontend/.env.local
+control_panel/frontend/dist/*
