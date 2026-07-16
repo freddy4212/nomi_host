@@ -19,6 +19,7 @@ psycopg2-binary>=2.9.0
 # Inference Layer (LLM)
 python-dotenv>=1.0.0
 PyYAML>=6.0.1
+ruamel.yaml>=0.17.0  # 保留 config.yaml 註解/格式的往返讀寫（未安裝時自動退回 PyYAML）
 google-genai>=1.0.0
 
 # Device Simulator / Tools

@@ -24,16 +24,19 @@ function isLocale(value: unknown): value is Locale {
 const cached = 'localStorage' in window ? localStorage.getItem('user-locale') : null
 const currentLocale = ref<Locale>(isLocale(cached) ? cached : DEFAULT_LOCALE)
 
-// 避免初始從後端載入語言時又立刻寫回後端造成無謂請求
-let suppressBackendSync = false
+// 記錄「後端 config.yaml 目前已知的語言」。用來避免開機從後端載入語言時，
+// 又把同一個值寫回後端造成無謂（且潛在具風險）的寫入。
+// 用值比對而非旗標，可避免 Vue watch 為非同步（下一個 tick 才觸發）導致旗標失效的時序問題。
+let knownBackendLocale: Locale | null = null
 
 watch(currentLocale, (newLocale) => {
   if ('localStorage' in window) {
     localStorage.setItem('user-locale', newLocale)
   }
-  if (!suppressBackendSync) {
-    void persistLocaleToBackend(newLocale)
-  }
+  // 與後端已知值相同代表這次變更來自「從後端載入」，不需再寫回
+  if (newLocale === knownBackendLocale) return
+  knownBackendLocale = newLocale
+  void persistLocaleToBackend(newLocale)
 })
 
 // 從後端 config.yaml 讀取語言（開機時呼叫一次，config.yaml 為單一真實來源）
@@ -43,9 +46,9 @@ async function loadLocaleFromBackend(): Promise<void> {
     if (!res.ok) return
     const data = await res.json()
     if (isLocale(data?.language)) {
-      suppressBackendSync = true
+      // 先標記為後端已知值，稍後 watch 觸發時會因值相同而略過寫回
+      knownBackendLocale = data.language
       currentLocale.value = data.language
-      suppressBackendSync = false
     }
   } catch {
     // 後端未就緒時沿用 localStorage / 預設值
